@@ -34,7 +34,7 @@
     
     <!-- Preprocessing of point cloud -->
     <param name="voxelize" value="true"/>
-    <param name="remove_outliers" value="true"/>
+    <param name="remove_outliers" value="false"/>
     <rosparam param="workspace"> [-1, 1, -1, 1, -1, 1] </rosparam>
     <rosparam param="camera_position"> [0, 0, 0] </rosparam>
             
@@ -53,7 +53,7 @@
     
     <!-- Grasp image creation -->
     <param name="create_image_batches" value="false" /> <!-- creates grasp images in batches (less memory usage) -->
-    <param name="remove_plane_before_image_calculation" value="true" /> <!-- removes table plane from point cloud to speed up shadow computations -->
+    <param name="remove_plane_before_image_calculation" value="false" /> <!-- removes table plane from point cloud to speed up shadow computations -->
     
     <!-- Clustering of grasps -->
     <param name="min_inliers" value="1" />

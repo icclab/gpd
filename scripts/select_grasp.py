@@ -13,9 +13,7 @@ def cloudCallback(msg):
     global cloud
     if len(cloud) == 0:
         for p in point_cloud2.read_points(msg, skip_nans=True): 
-            #print p[2]
 	    cloud.append([p[0], p[1], p[2]])
-	    #cloud_sub.unregister()
 
 
 # Create a ROS node.
@@ -55,9 +53,6 @@ header.frame_id = "/base_link"
 header.stamp = rospy.Time.now()
 msg.cloud_sources.cloud = point_cloud2.create_cloud_xyz32(header, cloud2.tolist())
 msg.cloud_sources.view_points.append(Point(0,0,0))
-
-
-print cloud2.shape[0]
 
 
 for i in xrange(cloud2.shape[0]):
