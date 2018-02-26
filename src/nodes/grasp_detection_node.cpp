@@ -66,7 +66,7 @@ GraspDetectionNode::GraspDetectionNode(ros::NodeHandle& node) : has_cloud_(false
   }
 
   // uses ROS topics to publish grasp candidates, antipodal grasps, and grasps after clustering
-  grasps_pub_ = node.advertise<gpd::GraspConfigList>("clustered_grasps", 10);
+  grasps_pub_ = node.advertise<gpd::GraspConfigList>("clustered_grasps", 10, true);
 
   node.getParam("workspace", workspace_);
 }
