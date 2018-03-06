@@ -34,7 +34,7 @@ while i<8:
 cloud = pcl.PointCloud()
 cloud = filterCloud(rawCloud)
 
-p = subprocess.Popen(['rosrun', 'pcl_ros','pcd_to_pointcloud', 'temp.pcd'])
+#p = subprocess.Popen(['rosrun', 'pcl_ros','pcd_to_pointcloud', 'temp.pcd'])
 
 # Extract the nonplanar indices. Uses a least squares fit AX = b. Plane equation: z = ax + by + c.
 import numpy as np
@@ -57,7 +57,7 @@ from geometry_msgs.msg import Point
 pub = rospy.Publisher('cloud_indexed', CloudIndexed, queue_size=1, latch=True)
 msg = CloudIndexed()
 header = Header()
-header.frame_id = "/base_link"
+header.frame_id = "head_camera_rgb_optical_frame"
 header.stamp = rospy.Time.now()
 msg.cloud_sources.cloud = point_cloud2.create_cloud_xyz32(header, cloud2.tolist())
 msg.cloud_sources.view_points.append(Point(0,0,0))
