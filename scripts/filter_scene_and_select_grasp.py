@@ -2,12 +2,31 @@ import sys
 import subprocess
 import rospy
 import pcl
+import actionlib	
 from plane_segm import filterCloud
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
-
-# Publish point cloud and nonplanar indices.
 from gpd.msg import CloudIndexed
+from control_msgs.msg import PointHeadAction, PointHeadGoal
+
+# Point the head using controller
+class PointHeadClient(object):
+
+    def __init__(self):
+        self.client = actionlib.SimpleActionClient("head_controller/point_head", PointHeadAction)
+        rospy.loginfo("Waiting for head_controller...")
+        self.client.wait_for_server()
+
+    def look_at(self, x, y, z, frame, duration=1.0):
+        goal = PointHeadGoal()
+        goal.target.header.stamp = rospy.Time.now()
+        goal.target.header.frame_id = frame
+        goal.target.point.x = x
+        goal.target.point.y = y
+        goal.target.point.z = z
+        goal.min_duration = rospy.Duration(duration)
+        self.client.send_goal(goal)
+        self.client.wait_for_result()
 
 i=0
 rawCloud = [] # global variable to store the point cloud
@@ -22,6 +41,11 @@ def cloudCallback(msg):
 	    rawCloud.append([p[0], p[1], p[2]])
 
 rospy.init_node('select_grasp')
+
+
+head = PointHeadClient()
+print "Moving head"
+head.look_at(2, 0.0, 0.0, "base_link")
 
 # Subscribe to the ROS topic that contains the grasps.
 cloud_sub = rospy.Subscriber("/head_camera/depth_downsample/points", PointCloud2, cloudCallback)

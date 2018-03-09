@@ -9,10 +9,9 @@ from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 
-
-
 grasps = []
 formatted_grasps = []
+
 
 def print_color(text):
 	print str('\033[33m' + '\033[1m'  + text + '\033[0m')
@@ -38,6 +37,7 @@ rospy.init_node("gpd_pick_and_place")
 print_color("Waiting for grasps to arrive")
 rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, grasp_callback)
 marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
+
 
 #wait for grasps
 #while len(grasps) == 0:
@@ -86,7 +86,7 @@ for i in range(0, 5):
 	pos.effort.append(50.0)
 	g.grasp_posture.points.append(pos)
 
-	g.allowed_touch_objects = []
+	g.allowed_touch_objects = ["<octomap>"]
 	g.max_contact_force = 0.0
 	g.grasp_quality = grasps[0].score.data
 
@@ -97,6 +97,7 @@ for i in range(0, 5):
 #pprint.pprint(g.grasp_pose.pose)
 
 show_grasp_pose(marker_publisher, grasps[0].surface, quat)
+rospy.sleep(1)
 print_color("Pick sequence started")
 pick_result = p.pickup("obj", formatted_grasps, planning_time=9001)
 print_color("Done")
