@@ -5,6 +5,7 @@ import numpy as np
 def filterCloud(rawCloud):
 	#cloud = pcl.load(str(arg1))
 	cloud = pcl.PointCloud()
+	obstaclesCloud = pcl.PointCloud()
 	cloud.from_array(np.asarray(rawCloud, dtype=np.float32))
 	print "Loaded PointCloud with: " + str(cloud.size) + " points."
 	
@@ -28,8 +29,10 @@ def filterCloud(rawCloud):
 	seg.set_max_iterations(1000)
 	seg.set_distance_threshold(0.01)
 	indices, model = seg.segment()
+	obstaclesCloud = cloud.extract(indices, negative=False)
 	cloud = cloud.extract(indices, negative=True)
 	print "PointCloud after plane filtering has: " + str(cloud.size) + " points."
 	
-	pcl.save(cloud, "temp.pcd")
+	#pcl.save(cloud, "temp.pcd")
+	pcl.save(obstaclesCloud, "obstacles.pcd")
 	return cloud

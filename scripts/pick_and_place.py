@@ -1,11 +1,14 @@
 import rospy
+import numpy as np
+from pprint import pprint
+from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp, PlaceLocation
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import quaternion_from_euler
 from trajectory_msgs.msg import JointTrajectoryPoint
-from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
+from geometry_msgs.msg import Pose, Point, Vector3
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 
@@ -21,14 +24,16 @@ def grasp_callback(msg):
 	grasps = msg.grasps
 	print_color("Received new grasps")
 
-def show_grasp_pose(publisher, pos, quat):
+def show_grasp_pose(publisher, grasp_pose):
+	print_color("Arrow orientation:")
+	pprint(grasp_pose.orientation)
 	marker = Marker(
                 type=Marker.ARROW,
                 id=0,
                 lifetime=rospy.Duration(30),
-                pose=Pose(Point(pos.x, pos.y, pos.z), Quaternion(quat[0], quat[1], quat[2], quat[3])),
-                scale=Vector3(0.03, 0.03, 0.03),
-                header=Header(frame_id='d_camera_rgb_optical_frame'),
+                pose=grasp_pose,
+		scale=Vector3(0.03, 0.03, 0.03),
+                header=Header(frame_id='head_camera_rgb_optical_frame'),
                 color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
 	publisher.publish(marker)
 
@@ -46,9 +51,10 @@ marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
 rospy.sleep(1)
 
 p = PickPlaceInterface("arm", "gripper", verbose=True)
-g = Grasp()
+
 
 for i in range(0, 5):
+	g = Grasp()
 	g.id = "dupa"
 	gp = PoseStamped()
 	gp.header.frame_id = "head_camera_rgb_optical_frame"
@@ -56,21 +62,25 @@ for i in range(0, 5):
 	gp.pose.position.y = grasps[i].surface.y
 	gp.pose.position.z = grasps[i].surface.z
 
-	quat = quaternion_from_euler(grasps[i].approach.x, grasps[i].approach.y, grasps[i].approach.z)
+	r = np.array([[grasps[i].approach.x, grasps[i].approach.y, grasps[i].approach.z], 
+	     [grasps[i].binormal.x, grasps[i].binormal.y, grasps[i].binormal.z], 
+	     [grasps[i].axis.x, grasps[i].axis.y, grasps[i].axis.z]])
 
-	gp.pose.orientation.x = float(quat[0]) 
-	gp.pose.orientation.y = float(quat[1])
-	gp.pose.orientation.z = float(quat[2])
-	gp.pose.orientation.w = float(quat[3])
+	quat = Quaternion(matrix=r)	
+
+	gp.pose.orientation.x = float(quat.elements[1]) 
+	gp.pose.orientation.y = float(quat.elements[2])
+	gp.pose.orientation.z = float(quat.elements[3])
+	gp.pose.orientation.w = - float(quat.elements[0])
 
 	g.grasp_pose = gp
 
-	g.pre_grasp_approach.direction.header.frame_id = "wrist_roll_link"
+	g.pre_grasp_approach.direction.header.frame_id = "gripper_link"
 	g.pre_grasp_approach.direction.vector.x = 1.0
 	g.pre_grasp_approach.direction.vector.y = 0.0
 	g.pre_grasp_approach.direction.vector.z = 0.0
-	g.pre_grasp_approach.min_distance = 0.01
-	g.pre_grasp_approach.desired_distance = 0.1
+	g.pre_grasp_approach.min_distance = 0.07
+	g.pre_grasp_approach.desired_distance = 0.20
 
 	g.pre_grasp_posture.joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
 	pos = JointTrajectoryPoint()
@@ -92,15 +102,25 @@ for i in range(0, 5):
 
 	formatted_grasps.append(g)
 
-#print_color("Goal pose:")
-#import pprint
-#pprint.pprint(g.grasp_pose.pose)
-
-show_grasp_pose(marker_publisher, grasps[0].surface, quat)
 rospy.sleep(1)
 print_color("Pick sequence started")
-pick_result = p.pickup("obj", formatted_grasps, planning_time=9001)
-print_color("Done")
+
+for single_grasp in formatted_grasps:
+	show_grasp_pose(marker_publisher, single_grasp.grasp_pose.pose)
+
+	print_color("Executing grasp: ")
+	pprint(single_grasp.grasp_pose.pose)
+
+	rospy.sleep(1)
+	pick_result = p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>", allow_gripper_support_collision=True)
+	
+	if pick_result.error_code.val != -1:
+		print_color("Done")
+		break
+	print_color("Planer failed")
+
+
+
 #rospy.spin()
 
 #TODO

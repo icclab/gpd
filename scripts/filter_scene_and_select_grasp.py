@@ -28,7 +28,7 @@ class PointHeadClient(object):
         self.client.send_goal(goal)
         self.client.wait_for_result()
 
-i=0
+i = 0
 rawCloud = [] # global variable to store the point cloud
 
 def cloudCallback(msg):
@@ -51,20 +51,18 @@ head.look_at(2, 0.0, 0.0, "base_link")
 cloud_sub = rospy.Subscriber("/head_camera/depth_downsample/points", PointCloud2, cloudCallback)
 
 # Wait for point cloud to arrive.
-#while len(rawCloud) == 0:
 while i<8:
     rospy.sleep(0.01)
 
 cloud = pcl.PointCloud()
 cloud = filterCloud(rawCloud)
 
-#p = subprocess.Popen(['rosrun', 'pcl_ros','pcd_to_pointcloud', 'temp.pcd'])
+p = subprocess.Popen(['rosrun', 'pcl_ros','pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=head_camera_rgb_optical_frame'])
 
 # Extract the nonplanar indices. Uses a least squares fit AX = b. Plane equation: z = ax + by + c.
 import numpy as np
 from scipy.linalg import lstsq
 
-#cloud2 = np.asarray(cloud)
 cloud2 = cloud.to_array()
 X = cloud2
 A = np.c_[X[:,0], X[:,1], np.ones(X.shape[0])]
@@ -94,7 +92,6 @@ rospy.sleep(3.14)
 pub.publish(msg)
 print 'Published cloud with', len(msg.indices), 'indices'
 print 'Searching for grasps...'
-
 
 # Select a grasp for the robot to execute.
 from gpd.msg import GraspConfigList
