@@ -1,3 +1,11 @@
+# How to start Fetch pick&place demo
+
+* roslaunch gpd fetch_playground.launch
+* click "play" in gazebo to start simulation
+* roslaunch gpd fetch_demo.launch
+* run pick_and_place.py from gpd/scripts
+
+
 # Grasp Pose Detection (GPD)
 
 * **Author:** Andreas ten Pas (atp@ccs.neu.edu)
