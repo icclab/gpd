@@ -1,0 +1,10 @@
+<launch>
+	<!-- Start gpd CNN -->
+	<include file="$(find gpd)/launch/tutorial2.launch"/>
+
+	<!-- Fetch robot move_group, planners, octomap, etc -->
+	<include file="$(find gpd)/launch/include/fetch_move_group.launch"/>
+
+	<!-- Rviz I think... -->
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find gpd)/config/fetch_playground.rviz"/>
+</launch>
