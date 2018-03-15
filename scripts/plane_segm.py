@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 import pcl
 import numpy as np
+import subprocess
+
 from tools import *
 
 
-def filterCloud(rawCloud):
+def filter_cloud(rawCloud):
     # cloud = pcl.load(str(arg1))
     cloud = pcl.PointCloud()
     obstaclesCloud = pcl.PointCloud()
@@ -37,4 +39,8 @@ def filterCloud(rawCloud):
 
     # pcl.save(cloud, "temp.pcd")
     pcl.save(obstaclesCloud, "obstacles.pcd")
+    # Publish cloud with extracted obstacles to create octomap
+    subprocess.Popen(
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=head_camera_rgb_optical_frame'])
+
     return cloud

@@ -95,8 +95,7 @@ class GpdPickPlace(object):
             formatted_grasps.append(g)
         return formatted_grasps
 
-    @staticmethod
-    def trans_matrix_to_quaternion(grasps, i):
+    def trans_matrix_to_quaternion(self, grasps, i):
         r = np.array([[grasps[i].approach.x, grasps[i].approach.y, grasps[i].approach.z],
                       [grasps[i].binormal.x, grasps[i].binormal.y, grasps[i].binormal.z],
                       [grasps[i].axis.x, grasps[i].axis.y, grasps[i].axis.z]])
@@ -108,12 +107,12 @@ class GpdPickPlace(object):
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
+                rospy.sleep(1)
 
             if verbose:
                 pevent("Executing grasp: ")
                 pprint(single_grasp.grasp_pose.pose)
 
-            rospy.sleep(1)
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
@@ -134,11 +133,12 @@ if __name__ == "__main__":
     head.look_at(2.0, 0.0, 0.0, "base_link")
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-    gpd_prep = GpdGrasps()
+    gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
-    gpd_prep.publish_cloud_indexed()
+    gpd_prep.publish_indexed_cloud()
 
-    pnp = GpdPickPlace(mark_pose=False)
+    # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
+    pnp = GpdPickPlace(mark_pose=True)
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     pnp.pick(formatted_grasps, verbose=True)

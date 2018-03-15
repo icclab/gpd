@@ -7,7 +7,7 @@ from tools import *
 from scipy.linalg import lstsq
 from std_msgs.msg import Header, Int64
 from geometry_msgs.msg import Point
-from plane_segm import filterCloud
+from plane_segm import filter_cloud
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from gpd.msg import CloudIndexed
@@ -37,29 +37,27 @@ class PointHeadClient(object):
 class GpdGrasps(object):
     rawCloud = []
     filtered_cloud = []
-    i = 0
+    message_counter = 0
+    max_messages = 8
 
-    def __init__(self):
+    def __init__(self, max_messages):
+        self.max_messages = max_messages
         # Subscribe to the ROS topic that contains the grasps.
         rospy.Subscriber("/head_camera/depth_downsample/points", PointCloud2, self.cloud_callback)
 
     def cloud_callback(self, msg):
-        if self.i < 8:
-            self.i += 1
+        if self.message_counter < self.max_messages:
+            self.message_counter += 1
             for p in point_cloud2.read_points(msg, skip_nans=True):
                 self.rawCloud.append([p[0], p[1], p[2]])
 
     def filter_cloud(self):
         # Wait for point cloud to arrive.
-        while self.i < 8:
+        while self.message_counter < 8:
             rospy.sleep(0.01)
 
         #self.filtered_cloud = pcl.PointCloud()
-        self.filtered_cloud = filterCloud(self.rawCloud)
-
-        # Publish cloud with extracted obstacles to create octomap
-        subprocess.Popen(
-            ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=head_camera_rgb_optical_frame'])
+        self.filtered_cloud = filter_cloud(self.rawCloud)
 
     def extract_indices(self):
         # Extract the nonplanar indices. Uses a least squares fit AX = b. Plane equation: z = ax + by + c.
@@ -75,10 +73,9 @@ class GpdGrasps(object):
 
         return np_cloud, idx
 
-    def publish_cloud_indexed(self):
+    def generate_cloud_indexed_msg(self):
         np_cloud, idx = self.extract_indices()
 
-        pub = rospy.Publisher('cloud_indexed', CloudIndexed, queue_size=1, latch=True)
         msg = CloudIndexed()
         header = Header()
         header.frame_id = "head_camera_rgb_optical_frame"
@@ -90,8 +87,13 @@ class GpdGrasps(object):
             msg.cloud_sources.camera_source.append(Int64(0))
         for i in idx[0]:
             msg.indices.append(Int64(i))
+
+        return msg
+
+    def publish_indexed_cloud(self):
+        msg = self.generate_cloud_indexed_msg()
+
+        pub = rospy.Publisher('cloud_indexed', CloudIndexed, queue_size=1, latch=True)
         pub.publish(msg)
         rospy.sleep(3.14)
         pevent('Published cloud with ' + str(len(msg.indices)) + ' indices')
-
-
