@@ -1,5 +1,6 @@
 import rospy
 import numpy as np
+from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
@@ -12,9 +13,6 @@ from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import PointHeadClient, GpdGrasps
 
 
-def print_color(text):
-    print str('\033[33m' + '\033[1m' + text + '\033[0m')
-
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
@@ -26,13 +24,12 @@ class GpdPickPlace(object):
             self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
         self.p = PickPlaceInterface("arm", "gripper", verbose=True)
 
-
     def grasp_callback(self, msg):
         self.grasps = msg.grasps
-        print_color("Received new grasps")
+        pevent("Received new grasps")
 
     def show_grasp_pose(self, publisher, grasp_pose):
-        # print_color("Marker orientation:")
+        # pinfo("Marker orientation:")
         # pprint(grasp_pose.orientation)
         marker = Marker(
             type=Marker.ARROW,
@@ -45,7 +42,7 @@ class GpdPickPlace(object):
         publisher.publish(marker)
 
     def get_gpd_grasps(self):
-        print_color("Waiting for grasps to arrive")
+        pevent("Waiting for grasps to arrive")
         while len(self.grasps) == 0:
             rospy.sleep(0.01)
         return self.grasps
@@ -106,24 +103,26 @@ class GpdPickPlace(object):
         return Quaternion(matrix=r)
 
     def pick(self, grasps_list, verbose=False):
-        print_color("Pick sequence started")
+        pevent("Pick sequence started")
 
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
 
             if verbose:
-                print_color("Executing grasp: ")
+                pevent("Executing grasp: ")
                 pprint(single_grasp.grasp_pose.pose)
 
             rospy.sleep(1)
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
-            if pick_result.error_code.val != -1:
-                print_color("Done")
+            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+
+            if pick_result.error_code.val == 1 \
+                    or pick_result.error_code.val == -7:
+                pevent("Done")
                 break
-            print_color("Planer failed")
 
 
 if __name__ == "__main__":
@@ -131,7 +130,7 @@ if __name__ == "__main__":
 
     # Tilt the head down to see the table
     head = PointHeadClient()
-    print_color("Moving head")
+    pevent("Moving head")
     head.look_at(2.0, 0.0, 0.0, "base_link")
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN

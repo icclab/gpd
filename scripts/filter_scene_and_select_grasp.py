@@ -1,9 +1,9 @@
 import sys
 import subprocess
 import rospy
-import pcl
 import actionlib
 import numpy as np
+from tools import *
 from scipy.linalg import lstsq
 from std_msgs.msg import Header, Int64
 from geometry_msgs.msg import Point
@@ -19,7 +19,7 @@ class PointHeadClient(object):
 
     def __init__(self):
         self.client = actionlib.SimpleActionClient("head_controller/point_head", PointHeadAction)
-        rospy.loginfo("Waiting for head_controller...")
+        pevent("Waiting for head_controller...")
         self.client.wait_for_server()
 
     def look_at(self, x, y, z, frame, duration=1.0):
@@ -92,6 +92,6 @@ class GpdGrasps(object):
             msg.indices.append(Int64(i))
         pub.publish(msg)
         rospy.sleep(3.14)
-        print 'Published cloud with', len(msg.indices), 'indices'
+        pevent('Published cloud with ' + str(len(msg.indices)) + ' indices')
 
 
