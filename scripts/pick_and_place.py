@@ -6,16 +6,20 @@ from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp
-from geometry_msgs.msg import PoseStamped, Vector3
+from geometry_msgs.msg import PoseStamped, Vector3, Point, Pose
+from geometry_msgs.msg import Quaternion as dupa
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import PointHeadClient, GpdGrasps
 
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
 
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
+    approach_direction = []
 
     def __init__(self, mark_pose=False):
         rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -60,6 +64,12 @@ class GpdPickPlace(object):
 
             quat = self.trans_matrix_to_quaternion(grasps, i)
 
+            # delet
+            direction = [1, 1, 1]
+            direction = quat.rotate(direction)
+            pprint(direction)
+            self.approach_direction.append(direction)
+
             gp.pose.orientation.x = float(quat.elements[1])
             gp.pose.orientation.y = float(quat.elements[2])
             gp.pose.orientation.z = float(quat.elements[3])
@@ -101,6 +111,54 @@ class GpdPickPlace(object):
                       [grasps[i].axis.x, grasps[i].axis.y, grasps[i].axis.z]])
         return Quaternion(matrix=r)
 
+    def get_approach_direction(self, orientation):
+        q = [orientation.x, orientation.y, orientation.z, orientation.w]
+        e = euler_from_quaternion(q)
+        # pinfo("Euler angles:")
+        # pprint(e)
+        dist_to_x = abs(0.0 - e[1])
+        dist_to_minus_x = abs(3.14 - e[1])
+        dist_to_minus_z = abs(1.57 - e[1])
+        if e[1] > 0:
+            dist_to_z = abs((3.14 + 1.57) - e[1])
+        else:
+            dist_to_z = abs(-1.57 - e[1])
+
+        if abs(e[2]) > 2.5:  # obrot wokol osi Z odwraca mi sytuacje dla X
+            tmp = dist_to_x
+            dist_to_x = dist_to_minus_x
+            dist_to_minus_x = tmp
+        '''
+        if abs(e[0]) > 2.5: #obrot wokol osi X odwraca mi sytuacje dla Z
+            tmp = dist_to_z
+            dist_to_z = dist_to_minus_z
+            dist_to_minus_z = tmp
+        
+        pinfo("X:" + str(dist_to_x))
+        pinfo("-X:" + str(dist_to_minus_x))
+        pinfo("Z:" + str(dist_to_z))
+        pinfo("-Z:" + str(dist_to_minus_z))
+        '''
+        if (dist_to_x < dist_to_minus_x and
+                dist_to_x < dist_to_z and
+                dist_to_x < dist_to_minus_z):
+            pinfo("Approach X")
+
+        elif (dist_to_minus_x < dist_to_x and
+              dist_to_minus_x < dist_to_z and
+              dist_to_minus_x < dist_to_minus_z):
+            pinfo("Approach -X")
+
+        elif (dist_to_z < dist_to_x and
+              dist_to_z < dist_to_minus_x and
+              dist_to_z < dist_to_minus_z):
+            pinfo("Approach Z")
+
+        elif (dist_to_minus_z < dist_to_x and
+              dist_to_minus_z < dist_to_minus_x and
+              dist_to_minus_z < dist_to_z):
+            pinfo("Approach -Z")
+
     def pick(self, grasps_list, verbose=False):
         pevent("Pick sequence started")
 
@@ -112,6 +170,8 @@ class GpdPickPlace(object):
             if verbose:
                 pevent("Executing grasp: ")
                 pprint(single_grasp.grasp_pose.pose)
+
+            self.get_approach_direction(single_grasp.grasp_pose.pose.orientation)
 
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)

@@ -37,7 +37,7 @@ def filter_cloud(rawCloud):
     cloud = cloud.extract(indices, negative=True)
     pinfo("PointCloud after plane filtering has: " + str(cloud.size) + " points.")
 
-    # pcl.save(cloud, "temp.pcd")
+    pcl.save(cloud, "objects.pcd")
     pcl.save(obstaclesCloud, "obstacles.pcd")
     # Publish cloud with extracted obstacles to create octomap
     subprocess.Popen(
