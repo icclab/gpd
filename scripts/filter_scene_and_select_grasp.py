@@ -19,7 +19,7 @@ class PointHeadClient(object):
 
     def __init__(self):
         self.client = actionlib.SimpleActionClient("head_controller/point_head", PointHeadAction)
-        pevent("Waiting for head_controller...")
+        pevent("Waiting for head_controller")
         self.client.wait_for_server()
 
     def look_at(self, x, y, z, frame, duration=1.0):

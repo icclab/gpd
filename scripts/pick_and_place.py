@@ -6,20 +6,17 @@ from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp
-from geometry_msgs.msg import PoseStamped, Vector3, Point, Pose
-from geometry_msgs.msg import Quaternion as dupa
+from geometry_msgs.msg import PoseStamped, Vector3
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import PointHeadClient, GpdGrasps
-
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from tf.transformations import euler_from_quaternion
 
 
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    approach_direction = []
 
     def __init__(self, mark_pose=False):
         rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -63,12 +60,6 @@ class GpdPickPlace(object):
             gp.pose.position.z = grasps[i].surface.z
 
             quat = self.trans_matrix_to_quaternion(grasps, i)
-
-            # delet
-            direction = [1, 1, 1]
-            direction = quat.rotate(direction)
-            pprint(direction)
-            self.approach_direction.append(direction)
 
             gp.pose.orientation.x = float(quat.elements[1])
             gp.pose.orientation.y = float(quat.elements[2])

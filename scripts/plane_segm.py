@@ -2,7 +2,7 @@
 import pcl
 import numpy as np
 import subprocess
-
+import vtk
 from tools import *
 
 
@@ -39,8 +39,37 @@ def filter_cloud(rawCloud):
 
     pcl.save(cloud, "objects.pcd")
     pcl.save(obstaclesCloud, "obstacles.pcd")
+
+    # Make a mesh from object pointcloud and save it to stl file to load if from moveit side
+    create_mesh_and_save(cloud)
+
     # Publish cloud with extracted obstacles to create octomap
     subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=head_camera_rgb_optical_frame'])
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', 'cloud_pcd', '_frame_id:=head_camera_rgb_optical_frame'])
+    subprocess.Popen(
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=head_camera_rgb_optical_frame'])
 
     return cloud
+
+
+def create_mesh_and_save(cloud):
+    filename = "object.stl"
+
+    vtk_points = vtk.vtkPoints()
+    np_cloud = np.asarray(cloud)
+
+    for i in range(0, np_cloud.shape[0]):
+        vtk_points.InsertPoint(i, np_cloud[i][0], np_cloud[i][1], np_cloud[i][2])
+
+    profile = vtk.vtkPolyData()
+    profile.SetPoints(vtk_points)
+
+    delny = vtk.vtkDelaunay2D()
+    delny.SetInputData(profile)
+    delny.SetTolerance(0.001)
+
+    stlWriter = vtk.vtkSTLWriter()
+    stlWriter.SetFileName(filename)
+    stlWriter.SetFileName(filename)
+    stlWriter.SetInputConnection(delny.GetOutputPort())
+    stlWriter.Write()
