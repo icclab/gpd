@@ -5,7 +5,7 @@
 
   <!-- Params for the octomap monitor -->
   <param name="octomap_frame" type="string" value="base_link" />
-  <param name="octomap_resolution" type="double" value="0.05" />
+  <param name="octomap_resolution" type="double" value="0.02" />
   <param name="max_range" type="double" value="5.0" />
 <!--  <param name="publish_planning_scene" value="true" />
   <param name="publish_geometry_updates" value="true" />

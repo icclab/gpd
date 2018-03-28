@@ -6,7 +6,6 @@
   <!-- By default, we are not in debug mode -->
   <arg name="debug" default="false" />
 
-  <include file="$(find gpd)/launch/include/sensor_manager.launch.xml"/>
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
   <include file="$(find fetch_moveit_config)/launch/planning_context.launch">
     <arg name="load_robot_description" value="true"/>
@@ -24,6 +23,9 @@
     <arg name="debug" value="$(arg debug)"/>
     <arg name="pipeline" value="$(arg pipeline)" />
   </include>
+
+  <rosparam command="delete" param="move_group/sensors" />
+  <include ns="move_group"  file="$(find gpd)/launch/include/sensor_manager.launch.xml"/>
 
   <!-- If database loading was enabled, start mongodb as well -->
   <include file="$(find fetch_moveit_config)/launch/default_warehouse_db.launch" if="$(arg db)"/>
