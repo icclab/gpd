@@ -9,20 +9,20 @@ from tools import *
 def filter_cloud(rawCloud):
     # cloud = pcl.load(str(arg1))
     cloud = pcl.PointCloud()
-    obstaclesCloud = pcl.PointCloud()
+    obstacles_cloud = pcl.PointCloud()
     cloud.from_array(np.asarray(rawCloud, dtype=np.float32))
     pevent("Loaded PointCloud with: " + str(cloud.size) + " points.")
 
-    passFill = cloud.make_passthrough_filter()
-    passFill.set_filter_field_name("z")
-    passFill.set_filter_limits(0, 2)
-    cloud = passFill.filter()
+    pass_fill = cloud.make_passthrough_filter()
+    pass_fill.set_filter_field_name("z")
+    pass_fill.set_filter_limits(0, 2)
+    cloud = pass_fill.filter()
     pinfo("PointCloud after max range filtering has: " + str(cloud.size) + " points.")
 
-    statFill = cloud.make_statistical_outlier_filter()
-    statFill.set_mean_k(50)
-    statFill.set_std_dev_mul_thresh(1.0)
-    cloud = statFill.filter()
+    stat_fill = cloud.make_statistical_outlier_filter()
+    stat_fill.set_mean_k(50)
+    stat_fill.set_std_dev_mul_thresh(1.0)
+    cloud = stat_fill.filter()
     pinfo("PointCloud after outliers filtering has: " + str(cloud.size) + " points.")
 
     seg = cloud.make_segmenter_normals(ksearch=50)
@@ -33,12 +33,12 @@ def filter_cloud(rawCloud):
     seg.set_max_iterations(1000)
     seg.set_distance_threshold(0.01)
     indices, model = seg.segment()
-    obstaclesCloud = cloud.extract(indices, negative=False)
+    obstacles_cloud = cloud.extract(indices, negative=False)
     cloud = cloud.extract(indices, negative=True)
     pinfo("PointCloud after plane filtering has: " + str(cloud.size) + " points.")
 
     pcl.save(cloud, "objects.pcd")
-    pcl.save(obstaclesCloud, "obstacles.pcd")
+    pcl.save(obstacles_cloud, "obstacles.pcd")
 
     # Make a mesh from object pointcloud and save it to stl file to load if from moveit side
     create_mesh_and_save(cloud)
