@@ -15,7 +15,7 @@ def filter_cloud(rawCloud):
 
     pass_fill = cloud.make_passthrough_filter()
     pass_fill.set_filter_field_name("z")
-    pass_fill.set_filter_limits(0, 2)
+    pass_fill.set_filter_limits(0, 1)
     cloud = pass_fill.filter()
     pinfo("PointCloud after max range filtering has: " + str(cloud.size) + " points.")
 
@@ -31,11 +31,22 @@ def filter_cloud(rawCloud):
     seg.set_normal_distance_weight(0.1)
     seg.set_method_type(pcl.SAC_RANSAC)
     seg.set_max_iterations(1000)
-    seg.set_distance_threshold(0.01)
+    seg.set_distance_threshold(0.05)
     indices, model = seg.segment()
     obstacles_cloud = cloud.extract(indices, negative=False)
     cloud = cloud.extract(indices, negative=True)
     pinfo("PointCloud after plane filtering has: " + str(cloud.size) + " points.")
+
+    # extract objects from filtered cloud which now probably contains graspable objects
+    tree = cloud.make_kdtree()
+    ec = cloud.make_EuclideanClusterExtraction()
+    ec.set_ClusterTolerance(0.02)
+    ec.set_MinClusterSize(100)
+    ec.set_MaxClusterSize(25000)
+    ec.set_SearchMethod(tree)
+    cluster_indices = ec.Extract()
+    print('cluster_indices : ' + str(cluster_indices.__len__) + " count.")
+
 
     pcl.save(cloud, "objects.pcd")
     pcl.save(obstacles_cloud, "obstacles.pcd")

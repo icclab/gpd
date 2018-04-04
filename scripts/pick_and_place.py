@@ -6,7 +6,7 @@ from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp
-from geometry_msgs.msg import PoseStamped, Vector3
+from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
@@ -55,9 +55,9 @@ class GpdPickPlace(object):
             g.id = "dupa"
             gp = PoseStamped()
             gp.header.frame_id = "head_camera_rgb_optical_frame"
-            gp.pose.position.x = grasps[i].surface.x
-            gp.pose.position.y = grasps[i].surface.y
-            gp.pose.position.z = grasps[i].surface.z
+            gp.pose.position.x = grasps[i].bottom.x
+            gp.pose.position.y = grasps[i].bottom.y
+            gp.pose.position.z = grasps[i].bottom.z
 
             quat = self.trans_matrix_to_quaternion(grasps, i)
 
@@ -72,7 +72,7 @@ class GpdPickPlace(object):
             g.pre_grasp_approach.direction.vector.x = 1.0
             g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 0.0
-            g.pre_grasp_approach.min_distance = 0.07
+            g.pre_grasp_approach.min_distance = 0.03
             g.pre_grasp_approach.desired_distance = 0.20
 
             g.pre_grasp_posture.joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
@@ -153,6 +153,9 @@ class GpdPickPlace(object):
     def pick(self, grasps_list, verbose=False):
         pevent("Pick sequence started")
 
+        # Add object mesh to planning scene
+        self.add_object_mesh()
+
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
@@ -173,6 +176,20 @@ class GpdPickPlace(object):
                     or pick_result.error_code.val == -7:
                 pevent("Done")
                 break
+
+    def add_object_mesh(self):
+        planning = PlanningSceneInterface("head_camera_rgb_optical_frame")
+
+        obj_pose = Pose()
+        obj_pose.position.x = 0
+        obj_pose.position.y = 0
+        obj_pose.position.z = 0
+        obj_pose.orientation.x = 0
+        obj_pose.orientation.y = 0
+        obj_pose.orientation.z = 0
+        obj_pose.orientation.w = 1
+
+        planning.addMesh("obj", obj_pose, "object.stl", wait=True)
 
 
 if __name__ == "__main__":
