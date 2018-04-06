@@ -35,7 +35,7 @@ class PointHeadClient(object):
 
 
 class GpdGrasps(object):
-    rawCloud = []
+    raw_cloud = []
     filtered_cloud = []
     message_counter = 0
     max_messages = 8
@@ -49,7 +49,7 @@ class GpdGrasps(object):
         if self.message_counter < self.max_messages:
             self.message_counter += 1
             for p in point_cloud2.read_points(msg, skip_nans=True):
-                self.rawCloud.append([p[0], p[1], p[2]])
+                self.raw_cloud.append([p[0], p[1], p[2]])
 
     def filter_cloud(self):
         # Wait for point cloud to arrive.
@@ -57,7 +57,7 @@ class GpdGrasps(object):
             rospy.sleep(0.01)
 
         #self.filtered_cloud = pcl.PointCloud()
-        self.filtered_cloud = filter_cloud(self.rawCloud)
+        self.filtered_cloud = filter_cloud(self.raw_cloud)
 
     def extract_indices(self):
         # Extract the nonplanar indices. Uses a least squares fit AX = b. Plane equation: z = ax + by + c.
