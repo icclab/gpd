@@ -6,10 +6,10 @@ import vtk
 from tools import *
 
 
-def filter_cloud(rawCloud):
+def filter_cloud(raw_cloud):
     filtered_cloud = pcl.PointCloud()
     planes_cloud = pcl.PointCloud()
-    filtered_cloud.from_array(np.asarray(rawCloud, dtype=np.float32))
+    filtered_cloud.from_array(np.asarray(raw_cloud, dtype=np.float32))
     pevent("Loaded PointCloud with: " + str(filtered_cloud.size) + " points.")
 
     pass_fill = filtered_cloud.make_passthrough_filter()
