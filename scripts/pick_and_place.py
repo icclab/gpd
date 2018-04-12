@@ -1,17 +1,20 @@
 import rospy
 import numpy as np
+import copy
+import math
 from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
-from moveit_msgs.msg import Grasp
+from moveit_msgs.msg import Grasp, PlaceLocation
 from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import PointHeadClient, GpdGrasps
 from tf.transformations import euler_from_quaternion
+from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 
 
 class GpdPickPlace(object):
@@ -19,14 +22,15 @@ class GpdPickPlace(object):
     mark_pose = False
 
     def __init__(self, mark_pose=False):
-        rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
         if mark_pose:
             self.mark_pose = True
             self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
-        self.p = PickPlaceInterface("arm", "gripper", verbose=True)
+        self.p = PickPlaceInterface(group="arm", ee_group="gripper", verbose=True)
 
     def grasp_callback(self, msg):
         self.grasps = msg.grasps
+        self.grasp_subscriber.unregister()
         pevent("Received new grasps")
 
     def show_grasp_pose(self, publisher, grasp_pose):
@@ -39,7 +43,7 @@ class GpdPickPlace(object):
             pose=grasp_pose,
             scale=Vector3(0.03, 0.02, 0.02),
             header=Header(frame_id='head_camera_rgb_optical_frame'),
-            color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
+            color=ColorRGBA(1.0, 1.0, 0.0, 0.8))
         publisher.publish(marker)
 
     def get_gpd_grasps(self):
@@ -55,11 +59,14 @@ class GpdPickPlace(object):
             g.id = "dupa"
             gp = PoseStamped()
             gp.header.frame_id = "head_camera_rgb_optical_frame"
-            gp.pose.position.x = grasps[i].bottom.x
-            gp.pose.position.y = grasps[i].bottom.y
-            gp.pose.position.z = grasps[i].bottom.z
 
-            quat = self.trans_matrix_to_quaternion(grasps, i)
+            grasp_offset = - 0.12
+
+            gp.pose.position.x = grasps[i].surface.x + grasp_offset * grasps[i].approach.x
+            gp.pose.position.y = grasps[i].surface.y + grasp_offset * grasps[i].approach.y
+            gp.pose.position.z = grasps[i].surface.z + grasp_offset * grasps[i].approach.z
+
+            quat = self.trans_matrix_to_quaternion(grasps[i])
 
             gp.pose.orientation.x = float(quat.elements[1])
             gp.pose.orientation.y = float(quat.elements[2])
@@ -68,7 +75,8 @@ class GpdPickPlace(object):
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "gripper_link"
+            # g.pre_grasp_approach.direction.header.frame_id = "gripper_link"
+            g.pre_grasp_approach.direction.header.frame_id = "wrist_roll_link"
             g.pre_grasp_approach.direction.vector.x = 1.0
             g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 0.0
@@ -96,10 +104,10 @@ class GpdPickPlace(object):
             formatted_grasps.append(g)
         return formatted_grasps
 
-    def trans_matrix_to_quaternion(self, grasps, i):
-        r = np.array([[grasps[i].approach.x, grasps[i].approach.y, grasps[i].approach.z],
-                      [grasps[i].binormal.x, grasps[i].binormal.y, grasps[i].binormal.z],
-                      [grasps[i].axis.x, grasps[i].axis.y, grasps[i].axis.z]])
+    def trans_matrix_to_quaternion(self, grasp):
+        r = np.array([[grasp.approach.x, grasp.approach.y, grasp.approach.z],
+                      [grasp.binormal.x, grasp.binormal.y, grasp.binormal.z],
+                      [grasp.axis.x, grasp.axis.y, grasp.axis.z]])
         return Quaternion(matrix=r)
 
     def get_approach_direction(self, orientation):
@@ -168,14 +176,38 @@ class GpdPickPlace(object):
             self.get_approach_direction(single_grasp.grasp_pose.pose.orientation)
 
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
-                                        allow_gripper_support_collision=True)
+                                        allow_gripper_support_collision=False)
 
             pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
 
-            if pick_result.error_code.val == 1 \
-                    or pick_result.error_code.val == -7:
-                pevent("Done")
-                break
+            if pick_result.error_code.val == 1:
+                pevent("Grasp successful!")
+                return single_grasp
+
+    def place(self, place_pose):
+        pevent("Place sequence started")
+
+        places = list()
+
+        l = PlaceLocation()
+        l.id = "dupadupa"
+        l.place_pose = place_pose.grasp_pose
+        l.place_pose.pose.position.y += 0.3
+
+        l.post_place_posture = place_pose.grasp_posture
+        l.post_place_retreat = place_pose.post_grasp_retreat
+        l.pre_place_approach = place_pose.pre_grasp_approach
+
+        places.append(copy.deepcopy(l))
+
+        m = 16  # number of possible place poses
+        for i in range(0, m-1):
+            l.place_pose.pose = rotate_pose_msg_by_euler_angles(l.place_pose.pose, 0, 0, 2 * math.pi / m)
+            places.append(copy.deepcopy(l))
+
+        place_result = self.p.place("obj", places, support_name="<octomap>", planner_id="gripper", planning_time=9001, goal_is_eef=True)
+
+        pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
 
     def add_object_mesh(self):
         planning = PlanningSceneInterface("head_camera_rgb_optical_frame")
@@ -200,22 +232,19 @@ if __name__ == "__main__":
     pevent("Moving head")
     head.look_at(2.0, 0.0, 0.0, "base_link")
 
+    # subscribe for grasps
+    pnp = GpdPickPlace(mark_pose=True)
+
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
     gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
 
     # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
-    pnp = GpdPickPlace(mark_pose=True)
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
-    pnp.pick(formatted_grasps, verbose=True)
+    successful_grasp = pnp.pick(formatted_grasps, verbose=True)
 
     # pnp.pick(pnp.generate_grasp_msgs(pnp.get_gpd_grasps()), verbose=True)
 
-# rospy.spin()
-
-# TODO
-# l = PlaceLocation()
-# fill l
-# p.place("obj", [l, ], goal_is_eef=True, support_name="supp")
+    pnp.place(successful_grasp)
