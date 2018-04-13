@@ -19,9 +19,11 @@ from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
+    grasp_offset = - 0.12
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList,
+                                                 self.grasp_callback)
         if mark_pose:
             self.mark_pose = True
             self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
@@ -59,12 +61,10 @@ class GpdPickPlace(object):
             gp = PoseStamped()
             gp.header.frame_id = "head_camera_rgb_optical_frame"
 
-            grasp_offset = - 0.12
-
             # Move grasp back for given offset
-            gp.pose.position.x = grasps[i].surface.x + grasp_offset * grasps[i].approach.x
-            gp.pose.position.y = grasps[i].surface.y + grasp_offset * grasps[i].approach.y
-            gp.pose.position.z = grasps[i].surface.z + grasp_offset * grasps[i].approach.z
+            gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
+            gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
+            gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
 
             quat = self.trans_matrix_to_quaternion(grasps[i])
 
@@ -136,27 +136,67 @@ class GpdPickPlace(object):
     def place(self, place_pose):
         pevent("Place sequence started")
 
+        places = self.generate_place_poses(place_pose)
+
+        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planner_id="gripper", planning_time=9001,
+                                    goal_is_eef=True)
+
+        pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
+
+    def generate_place_poses(self, initial_place_pose):
         places = list()
 
         l = PlaceLocation()
         l.id = "dupadupa"
-        l.place_pose = place_pose.grasp_pose
-        l.place_pose.pose.position.y += 0.3
+        l.place_pose.header.frame_id = "head_camera_rgb_optical_frame"
+        #l.place_pose = initial_place_pose.grasp_pose
 
-        l.post_place_posture = place_pose.grasp_posture
-        l.post_place_retreat = place_pose.post_grasp_retreat
-        l.pre_place_approach = place_pose.pre_grasp_approach
+        # Whats happening here?
+        # Explanation: during grasp msg generation the grasp pose is moved back of the grasp_offset. Thats because
+        # moveit performs grasp until the gripper origin (wrist_roll_link) and gdp returns actual grasp pose (where the
+        # fingers should be closed)... Now to generate bunch of different orientations for planner by rotating original
+        # pose I need to go back to the original position. Basically I want just to rotate around place pose,
+        # not around the robot wrist
+
+        # Find transformation matrix of initial_place_pose
+        pose_id = 1337
+        for i in range(0, 5):
+            q = self.trans_matrix_to_quaternion(self.grasps[i])
+            if (initial_place_pose.grasp_pose.pose.orientation.x == float(q.elements[1]) and
+                    initial_place_pose.grasp_pose.pose.orientation.y == float(q.elements[2]) and
+                    initial_place_pose.grasp_pose.pose.orientation.z == float(q.elements[3]) and
+                    initial_place_pose.grasp_pose.pose.orientation.w == - float(q.elements[0])):
+                pose_id = i
+
+        # Load original grasp pose position...
+        l.place_pose.pose.position.x = self.grasps[pose_id].surface.x
+        l.place_pose.pose.position.y = self.grasps[pose_id].surface.y
+        l.place_pose.pose.position.z = self.grasps[pose_id].surface.z
+
+        # ... and orientation
+        q = self.trans_matrix_to_quaternion(self.grasps[pose_id])
+        l.place_pose.pose.orientation.x = float(q.elements[1])
+        l.place_pose.pose.orientation.y = float(q.elements[2])
+        l.place_pose.pose.orientation.z = float(q.elements[3])
+        l.place_pose.pose.orientation.w = - float(q.elements[0])  # don't forget the minus sign
+
+        # Move 50cm to the right
+        l.place_pose.pose.position.x += 0.5
+
+        # Fill rest of the msg with some data
+        l.post_place_posture = initial_place_pose.grasp_posture
+        l.post_place_retreat = initial_place_pose.post_grasp_retreat
+        l.pre_place_approach = initial_place_pose.pre_grasp_approach
 
         places.append(copy.deepcopy(l))
 
-        m = 16  # number of possible place poses
-        for i in range(0, m-1):
+        # Rotate place pose to generate more possible configurations for the planner
+        m = 16  # Number of possible place poses
+        for i in range(0, m - 1):
             l.place_pose.pose = rotate_pose_msg_by_euler_angles(l.place_pose.pose, 0, 0, 2 * math.pi / m)
             places.append(copy.deepcopy(l))
 
-        place_result = self.p.place("obj", places, support_name="<octomap>", planner_id="gripper", planning_time=9001, goal_is_eef=True)
-
-        pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
+        return places
 
     def add_object_mesh(self):
         planning = PlanningSceneInterface("head_camera_rgb_optical_frame")
@@ -194,6 +234,5 @@ if __name__ == "__main__":
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     successful_grasp = pnp.pick(formatted_grasps, verbose=True)
 
-    # pnp.pick(pnp.generate_grasp_msgs(pnp.get_gpd_grasps()), verbose=True)
-
+    # Place object with successful grasp pose as the starting point
     pnp.place(successful_grasp)
