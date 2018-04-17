@@ -18,6 +18,8 @@ def filter_cloud(raw_cloud):
     filtered_cloud = pass_fill.filter()
     pinfo("PointCloud after max range filtering has: " + str(filtered_cloud.size) + " points.")
 
+    # TODO: downsample cloud
+
     stat_fill = filtered_cloud.make_statistical_outlier_filter()
     stat_fill.set_mean_k(50)
     stat_fill.set_std_dev_mul_thresh(1.0)
@@ -41,9 +43,11 @@ def filter_cloud(raw_cloud):
     ec = filtered_cloud.make_EuclideanClusterExtraction()
     ec.set_ClusterTolerance(0.02)
     ec.set_MinClusterSize(100)
-    ec.set_MaxClusterSize(25000)
+    ec.set_MaxClusterSize(200000)
     ec.set_SearchMethod(tree)
     cluster_indices = ec.Extract()
+
+    #TODO: handle empty cluster_indices
 
     # probably dont need it, looks like cluster_indices is sorted, so first element is the biggest
     # max_size = 0
@@ -94,9 +98,9 @@ def filter_cloud(raw_cloud):
 
     # Publish cloud with extracted obstacles to create octomap
     subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', 'cloud_pcd', '_frame_id:=head_camera_rgb_optical_frame'])
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', 'cloud_pcd', '_frame_id:=xtion_rgb_optical_frame'])
     subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=head_camera_rgb_optical_frame'])
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=xtion_rgb_optical_frame'])
 
     return extracted_object_cloud
 

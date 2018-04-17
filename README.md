@@ -1,3 +1,6 @@
+# Branch currently contains VIP demo for Tiago robot
+# for Fetch demo version please use the **fetch-demo** branch
+
 # How to start Fetch pick&place demo
 
 * roslaunch gpd fetch_playground.launch

@@ -1,5 +1,4 @@
 import rospy
-import actionlib
 import numpy as np
 from tools import *
 from scipy.linalg import lstsq
@@ -9,27 +8,26 @@ from plane_segm import filter_cloud
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from gpd.msg import CloudIndexed
-from control_msgs.msg import PointHeadAction, PointHeadGoal
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 
 # Point the head using controller
 class PointHeadClient(object):
 
     def __init__(self):
-        self.client = actionlib.SimpleActionClient("head_controller/point_head", PointHeadAction)
-        pevent("Waiting for head_controller")
-        self.client.wait_for_server()
+        # TODO: why it works only with latched topic?
+        self.head_cmd = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=1, latch=True)
 
-    def look_at(self, x, y, z, frame, duration=1.0):
-        goal = PointHeadGoal()
-        goal.target.header.stamp = rospy.Time.now()
-        goal.target.header.frame_id = frame
-        goal.target.point.x = x
-        goal.target.point.y = y
-        goal.target.point.z = z
-        goal.min_duration = rospy.Duration(duration)
-        self.client.send_goal(goal)
-        self.client.wait_for_result()
+    def look_down(self):
+        pevent("Moving head")
+        jt = JointTrajectory()
+        jt.joint_names = ['head_1_joint', 'head_2_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [0.0, -0.4]
+        jtp.time_from_start = rospy.Duration(2.0)
+        jt.points.append(jtp)
+        self.head_cmd.publish(jt)
+        pevent("Done")
 
 
 class GpdGrasps(object):
@@ -41,7 +39,7 @@ class GpdGrasps(object):
     def __init__(self, max_messages):
         self.max_messages = max_messages
         # Subscribe to the ROS topic that contains the grasps.
-        rospy.Subscriber("/head_camera/depth_downsample/points", PointCloud2, self.cloud_callback)
+        rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
 
     def cloud_callback(self, msg):
         if self.message_counter < self.max_messages:
@@ -54,7 +52,6 @@ class GpdGrasps(object):
         while self.message_counter < 8:
             rospy.sleep(0.01)
 
-        #self.filtered_cloud = pcl.PointCloud()
         self.filtered_cloud = filter_cloud(self.raw_cloud)
 
     def extract_indices(self):
@@ -76,7 +73,7 @@ class GpdGrasps(object):
 
         msg = CloudIndexed()
         header = Header()
-        header.frame_id = "head_camera_rgb_optical_frame"
+        header.frame_id = "xtion_rgb_optical_frame"
         header.stamp = rospy.Time.now()
         msg.cloud_sources.cloud = point_cloud2.create_cloud_xyz32(header, np_cloud.tolist())
         msg.cloud_sources.view_points.append(Point(0, 0, 0))

@@ -43,7 +43,7 @@ class GpdPickPlace(object):
             lifetime=rospy.Duration(30),
             pose=grasp_pose,
             scale=Vector3(0.03, 0.02, 0.02),
-            header=Header(frame_id='head_camera_rgb_optical_frame'),
+            header=Header(frame_id='xtion_rgb_optical_frame'),
             color=ColorRGBA(1.0, 1.0, 0.0, 0.8))
         publisher.publish(marker)
 
@@ -59,7 +59,7 @@ class GpdPickPlace(object):
             g = Grasp()
             g.id = "dupa"
             gp = PoseStamped()
-            gp.header.frame_id = "head_camera_rgb_optical_frame"
+            gp.header.frame_id = "xtion_rgb_optical_frame"
 
             # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
@@ -75,20 +75,20 @@ class GpdPickPlace(object):
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "wrist_roll_link"
+            g.pre_grasp_approach.direction.header.frame_id = "arm_tool_link"
             g.pre_grasp_approach.direction.vector.x = 1.0
             g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 0.0
             g.pre_grasp_approach.min_distance = 0.03
             g.pre_grasp_approach.desired_distance = 0.20
 
-            g.pre_grasp_posture.joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
+            g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
             pos = JointTrajectoryPoint()
             pos.positions.append(0.055)
             pos.positions.append(0.055)
             g.pre_grasp_posture.points.append(pos)
 
-            g.grasp_posture.joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
+            g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
             pos = JointTrajectoryPoint()
             pos.positions.append(0.0)
             pos.positions.append(0.0)
@@ -148,7 +148,7 @@ class GpdPickPlace(object):
 
         l = PlaceLocation()
         l.id = "dupadupa"
-        l.place_pose.header.frame_id = "head_camera_rgb_optical_frame"
+        l.place_pose.header.frame_id = "xtion_rgb_optical_frame"
         #l.place_pose = initial_place_pose.grasp_pose
 
         # Whats happening here?
@@ -199,7 +199,7 @@ class GpdPickPlace(object):
         return places
 
     def add_object_mesh(self):
-        planning = PlanningSceneInterface("head_camera_rgb_optical_frame")
+        planning = PlanningSceneInterface("xtion_rgb_optical_frame")
 
         obj_pose = Pose()
         obj_pose.position.x = 0
@@ -218,8 +218,7 @@ if __name__ == "__main__":
 
     # Tilt the head down to see the table
     head = PointHeadClient()
-    pevent("Moving head")
-    head.look_at(2.0, 0.0, 0.0, "base_link")
+    head.look_down()
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
