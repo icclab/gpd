@@ -1,5 +1,3 @@
-import sys
-import subprocess
 import rospy
 import actionlib
 import numpy as np

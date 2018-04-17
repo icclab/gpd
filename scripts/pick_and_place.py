@@ -158,14 +158,14 @@ class GpdPickPlace(object):
         # pose I need to go back to the original position. Basically I want just to rotate around place pose,
         # not around the robot wrist
 
-        # Find transformation matrix of initial_place_pose
+        # Find original grasp pose comparing its orientation initial_place_pose
         pose_id = 1337
         for i in range(0, 5):
             q = self.trans_matrix_to_quaternion(self.grasps[i])
             if (initial_place_pose.grasp_pose.pose.orientation.x == float(q.elements[1]) and
                     initial_place_pose.grasp_pose.pose.orientation.y == float(q.elements[2]) and
                     initial_place_pose.grasp_pose.pose.orientation.z == float(q.elements[3]) and
-                    initial_place_pose.grasp_pose.pose.orientation.w == - float(q.elements[0])):
+                    initial_place_pose.grasp_pose.pose.orientation.w == - float(q.elements[0])):  # minus
                 pose_id = i
 
         # Load original grasp pose position...
