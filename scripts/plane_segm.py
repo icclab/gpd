@@ -18,7 +18,10 @@ def filter_cloud(raw_cloud):
     filtered_cloud = pass_fill.filter()
     pinfo("PointCloud after max range filtering has: " + str(filtered_cloud.size) + " points.")
 
-    # TODO: downsample cloud
+    sor = filtered_cloud.make_voxel_grid_filter()
+    sor.set_leaf_size(0.005, 0.005, 0.005)
+    filtered_cloud = sor.filter()
+    pinfo("Downsampled PointCloud has: " + str(filtered_cloud.size) + " points.")
 
     stat_fill = filtered_cloud.make_statistical_outlier_filter()
     stat_fill.set_mean_k(50)
