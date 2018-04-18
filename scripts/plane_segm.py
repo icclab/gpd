@@ -50,7 +50,9 @@ def filter_cloud(raw_cloud):
     ec.set_SearchMethod(tree)
     cluster_indices = ec.Extract()
 
-    #TODO: handle empty cluster_indices
+    # Filtering returned empty point cloud, return and try again
+    if len(cluster_indices) == 0:
+        return pcl.PointCloud()
 
     # probably dont need it, looks like cluster_indices is sorted, so first element is the biggest
     # max_size = 0

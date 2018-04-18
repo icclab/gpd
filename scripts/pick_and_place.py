@@ -12,7 +12,7 @@ from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
-from filter_scene_and_select_grasp import PointHeadClient, GpdGrasps
+from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 
 
@@ -27,7 +27,7 @@ class GpdPickPlace(object):
         if mark_pose:
             self.mark_pose = True
             self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
-        self.p = PickPlaceInterface(group="arm", ee_group="gripper", verbose=True)
+        self.p = PickPlaceInterface(group="arm_torso", ee_group="gripper", verbose=True)
 
     def grasp_callback(self, msg):
         self.grasps = msg.grasps
@@ -75,7 +75,7 @@ class GpdPickPlace(object):
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "arm_tool_link"
+            g.pre_grasp_approach.direction.header.frame_id = "gripper_link"
             g.pre_grasp_approach.direction.vector.x = 1.0
             g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 0.0
@@ -125,7 +125,7 @@ class GpdPickPlace(object):
                 pprint(single_grasp.grasp_pose.pose)
 
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
-                                        allow_gripper_support_collision=False)
+                                        allow_gripper_support_collision=True)
 
             pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
 
@@ -138,8 +138,8 @@ class GpdPickPlace(object):
 
         places = self.generate_place_poses(place_pose)
 
-        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planner_id="gripper", planning_time=9001,
-                                    goal_is_eef=True)
+        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planner_id="gripper",
+                                               planning_time=9001, goal_is_eef=True)
 
         pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
 
@@ -149,7 +149,6 @@ class GpdPickPlace(object):
         l = PlaceLocation()
         l.id = "dupadupa"
         l.place_pose.header.frame_id = "xtion_rgb_optical_frame"
-        #l.place_pose = initial_place_pose.grasp_pose
 
         # Whats happening here?
         # Explanation: during grasp msg generation the grasp pose is moved back of the grasp_offset. Thats because
@@ -217,8 +216,10 @@ if __name__ == "__main__":
     rospy.init_node("gpd_pick_and_place")
 
     # Tilt the head down to see the table
-    head = PointHeadClient()
-    head.look_down()
+    robot = RobotPreparation()
+    robot.look_down()
+    # robot.lift_torso()
+    robot.unfold_arm()
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)

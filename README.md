@@ -1,5 +1,5 @@
-# Branch currently contains VIP demo for Tiago robot
-# for Fetch demo version please use the **fetch-demo** branch
+# Branch currently contains WIP demo for Tiago robot
+# For Fetch demo version please use the **fetch-demo** branch
 
 # How to start Fetch pick&place demo
 
