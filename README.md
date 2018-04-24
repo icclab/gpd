@@ -1,11 +1,10 @@
 # Branch currently contains WIP demo for Tiago robot
 # For Fetch demo version please use the **fetch-demo** branch
 
-# How to start Fetch pick&place demo
+# How to start Tiago pick&place demo
 
+* run gripper_hack.py from gpd/scripts
 * roslaunch gpd fetch_playground.launch
-* click "play" in gazebo to start simulation
-* roslaunch gpd fetch_demo.launch
 * run pick_and_place.py from gpd/scripts
 
 
