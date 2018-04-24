@@ -24,6 +24,7 @@ class RobotPreparation(object):
         self.play_m_as = SimpleActionClient('play_motion', PlayMotionAction)
         if not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
             perror("Could not connect to /play_motion AS")
+            exit(1)
 
 
     def look_down(self):

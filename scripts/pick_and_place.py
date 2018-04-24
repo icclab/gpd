@@ -82,18 +82,20 @@ class GpdPickPlace(object):
             g.pre_grasp_approach.min_distance = 0.03
             g.pre_grasp_approach.desired_distance = 0.20
 
-            g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-            pos = JointTrajectoryPoint()
-            pos.positions.append(0.055)
-            pos.positions.append(0.055)
-            g.pre_grasp_posture.points.append(pos)
+            # g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+            # pos = JointTrajectoryPoint()
+            # pos.positions.append(0.044)
+            # pos.positions.append(0.044)
+            # g.pre_grasp_posture.points.append(pos)
 
             g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
             pos = JointTrajectoryPoint()
             pos.positions.append(0.0)
             pos.positions.append(0.0)
-            pos.effort.append(50.0)
-            pos.effort.append(50.0)
+            pos.accelerations.append(0.0)
+            pos.accelerations.append(0.0)
+            # pos.effort.append(0.0)
+            # pos.effort.append(0.0)
             g.grasp_posture.points.append(pos)
 
             g.allowed_touch_objects = ["<octomap>"]
@@ -138,7 +140,7 @@ class GpdPickPlace(object):
 
         places = self.generate_place_poses(place_pose)
 
-        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planner_id="gripper",
+        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>",# planner_id="gripper",
                                                planning_time=9001, goal_is_eef=True)
 
         pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
@@ -180,7 +182,7 @@ class GpdPickPlace(object):
         l.place_pose.pose.orientation.w = - float(q.elements[0])  # don't forget the minus sign
 
         # Move 50cm to the right
-        l.place_pose.pose.position.x += 0.5
+        l.place_pose.pose.position.x += 0.2
 
         # Fill rest of the msg with some data
         l.post_place_posture = initial_place_pose.grasp_posture
