@@ -15,5 +15,7 @@
     <arg name="gui"      value="$(arg gzclient)"/>
   </include>
 
+  <!-- Start gpd CNN -->
+  <include file="$(find gpd)/launch/tutorial2.launch"/>
 
 </launch>
