@@ -91,7 +91,14 @@ In Ubuntu 16.04, install ROS Kinetic [(Instructions)](http://wiki.ros.org/kineti
    git clone https://github.com/atenpas/gpd.git
    ```
 
-2. Build your catkin workspace.
+2. Make sure that you linked your local caffe build in CMakeLists.txt
+   Something like:
+
+   ```
+   SET(CAFFE_DIR "/home/fitter/Documents/caffe/build")
+   ```
+
+3. Build your catkin workspace.
 
    ```
    cd <location_of_your_workspace>
