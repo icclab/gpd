@@ -2,24 +2,28 @@ import rospy
 import numpy as np
 import copy
 import math
+import tf
 from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp, PlaceLocation
-from geometry_msgs.msg import PoseStamped, Vector3, Pose
+from geometry_msgs.msg import PoseStamped, Vector3, Pose, TransformStamped
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
+from tf.transformations import quaternion_from_euler, quaternion_multiply
+import math
+import play_motion
 
 
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = - 0.12
+    grasp_offset = -0.2
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList,
@@ -27,7 +31,19 @@ class GpdPickPlace(object):
         if mark_pose:
             self.mark_pose = True
             self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
+
         self.p = PickPlaceInterface(group="arm_torso", ee_group="gripper", verbose=True)
+
+        self.tf = tf.TransformListener()
+
+    def get_tiago_gripper_transform(self):
+        if self.tf.frameExists("/xtion_rgb_optical_frame") and self.tf.frameExists("/base_link"):
+            t = self.tf.getLatestCommonTime("/xtion_rgb_optical_frame", "/base_link")
+            _, quaternion = self.tf.lookupTransform("/xtion_rgb_optical_frame", "/base_link", t)
+            return quaternion
+        else:
+            perror("Cannot find tf between camera and gripper frames.\n Aborting")
+            exit(1)
 
     def grasp_callback(self, msg):
         self.grasps = msg.grasps
@@ -61,32 +77,42 @@ class GpdPickPlace(object):
             gp = PoseStamped()
             gp.header.frame_id = "xtion_rgb_optical_frame"
 
+            quat = self.trans_matrix_to_quaternion(grasps[i])
+            q = [quat.elements[0], quat.elements[1], quat.elements[2], quat.elements[3]]
+
+            rot_q = quaternion_from_euler(math.radians(-90), math.radians(0), math.radians(0))
+
+            # q = quaternion_multiply(q, rot_q)
+
             # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
             gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
             gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
 
-            quat = self.trans_matrix_to_quaternion(grasps[i])
+            # gp.pose.orientation.x = float(quat.elements[1])
+            # gp.pose.orientation.y = float(quat.elements[2])
+            # gp.pose.orientation.z = float(quat.elements[3])
+            # gp.pose.orientation.w = - float(quat.elements[0])  # ??
 
-            gp.pose.orientation.x = float(quat.elements[1])
-            gp.pose.orientation.y = float(quat.elements[2])
-            gp.pose.orientation.z = float(quat.elements[3])
-            gp.pose.orientation.w = - float(quat.elements[0])  # ??
+            gp.pose.orientation.w = - float(q[0])  # ??
+            gp.pose.orientation.x = float(q[1])
+            gp.pose.orientation.y = float(q[2])
+            gp.pose.orientation.z = float(q[3])
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "gripper_link"
+            g.pre_grasp_approach.direction.header.frame_id = "arm_tool_link"
             g.pre_grasp_approach.direction.vector.x = 1.0
             g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 0.0
-            g.pre_grasp_approach.min_distance = 0.03
-            g.pre_grasp_approach.desired_distance = 0.20
+            g.pre_grasp_approach.min_distance = 0.06
+            g.pre_grasp_approach.desired_distance = 0.1
 
-            # g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-            # pos = JointTrajectoryPoint()
-            # pos.positions.append(0.044)
-            # pos.positions.append(0.044)
-            # g.pre_grasp_posture.points.append(pos)
+            g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+            pos = JointTrajectoryPoint()
+            pos.positions.append(0.1337)
+            pos.positions.append(0.1337)
+            g.pre_grasp_posture.points.append(pos)
 
             g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
             pos = JointTrajectoryPoint()
@@ -94,11 +120,10 @@ class GpdPickPlace(object):
             pos.positions.append(0.0)
             pos.accelerations.append(0.0)
             pos.accelerations.append(0.0)
-            # pos.effort.append(0.0)
-            # pos.effort.append(0.0)
             g.grasp_posture.points.append(pos)
+            g.grasp_posture.header.frame_id = "arm_tool_link"
 
-            g.allowed_touch_objects = ["<octomap>"]
+            g.allowed_touch_objects = ["<octomap>", "obj"]
             g.max_contact_force = 0.0
             g.grasp_quality = grasps[0].score.data
 
@@ -129,7 +154,11 @@ class GpdPickPlace(object):
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
-            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+            try:
+                pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+            except AttributeError:
+                perror("All pick grasp poses failed!\n Aborting")
+                exit(1)
 
             if pick_result.error_code.val == 1:
                 pevent("Grasp successful!")
@@ -181,7 +210,7 @@ class GpdPickPlace(object):
         l.place_pose.pose.orientation.z = float(q.elements[3])
         l.place_pose.pose.orientation.w = - float(q.elements[0])  # don't forget the minus sign
 
-        # Move 50cm to the right
+        # Move 20cm to the right
         l.place_pose.pose.position.x += 0.2
 
         # Fill rest of the msg with some data

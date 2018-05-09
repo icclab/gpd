@@ -848,7 +848,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Axes
       Enabled: true
-      Length: 0.100000001
+      Length: 0.150000006
       Name: Axes
       Radius: 0.0199999996
       Reference Frame: gripper_link
@@ -878,7 +878,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.54698038
+      Distance: 2.36460352
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -893,10 +893,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.165203854
+      Pitch: 0.0852038637
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.26732957
+      Yaw: 0.947329462
     Saved: ~
 Window Geometry:
   Displays:
