@@ -23,7 +23,7 @@ import play_motion
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.2
+    grasp_offset = -0.15
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList,
@@ -211,7 +211,7 @@ class GpdPickPlace(object):
         l.place_pose.pose.orientation.w = - float(q.elements[0])  # don't forget the minus sign
 
         # Move 20cm to the right
-        l.place_pose.pose.position.x += 0.2
+        l.place_pose.pose.position.y += 0.2
 
         # Fill rest of the msg with some data
         l.post_place_posture = initial_place_pose.grasp_posture
@@ -242,6 +242,27 @@ class GpdPickPlace(object):
 
         planning.addMesh("obj", obj_pose, "object.stl", wait=True)
 
+    def get_know_successful_grasp(self):
+
+        g = Grasp()
+        g.id = "successful_predefined_grasp"
+
+        gp = PoseStamped()
+        gp.header.frame_id = "xtion_rgb_optical_frame"
+
+        gp.pose.position.x = 0.183518647951
+        gp.pose.position.y = -0.23707952283
+        gp.pose.position.z = 0.493978534979
+
+        gp.pose.orientation.w =  -0.604815599864
+        gp.pose.orientation.x = -0.132654186819
+        gp.pose.orientation.y = 0.698958888788
+        gp.pose.orientation.z = -0.357851126398
+
+        g.grasp_pose = gp
+
+        return g
+
 
 if __name__ == "__main__":
     rospy.init_node("gpd_pick_and_place")
@@ -249,21 +270,22 @@ if __name__ == "__main__":
     # Tilt the head down to see the table
     robot = RobotPreparation()
     robot.look_down()
-    # robot.lift_torso()
+    #robot.lift_torso()
     robot.unfold_arm()
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
-
+    #
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
     gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
-
-    # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
+    #
+    # # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     successful_grasp = pnp.pick(formatted_grasps, verbose=True)
+    #successful_grasp = pnp.get_know_successful_grasp()
 
     # Place object with successful grasp pose as the starting point
     pnp.place(successful_grasp)
