@@ -104,15 +104,15 @@ def filter_cloud(raw_cloud):
 
     # Publish cloud with extracted obstacles to create octomap
     pcd = subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', 'cloud_pcd', '_frame_id:=xtion_rgb_optical_frame'])
+        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=xtion_rgb_optical_frame'])
 
-    pcd_2 = subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=xtion_rgb_optical_frame'])
+    #pcd_2 = subprocess.Popen(
+    #    ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=xtion_rgb_optical_frame'])
 
     # wait for pointcloud to be poublished and then stop
     rospy.sleep(3)
     pcd.terminate()
-    pcd_2.terminate()
+    #pcd_2.terminate()
 
     return extracted_object_cloud
 
