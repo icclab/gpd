@@ -1,23 +1,20 @@
 import rospy
 import numpy as np
 import copy
-import math
 import tf
+import math
 from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
 from gpd.msg import GraspConfigList
 from moveit_python import *
 from moveit_msgs.msg import Grasp, PlaceLocation
-from geometry_msgs.msg import PoseStamped, Vector3, Pose, TransformStamped
+from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
-from tf.transformations import quaternion_from_euler, quaternion_multiply
-import math
-import play_motion
 
 
 class GpdPickPlace(object):
@@ -35,15 +32,6 @@ class GpdPickPlace(object):
         self.p = PickPlaceInterface(group="arm_torso", ee_group="gripper", verbose=True)
 
         self.tf = tf.TransformListener()
-
-    def get_tiago_gripper_transform(self):
-        if self.tf.frameExists("/xtion_rgb_optical_frame") and self.tf.frameExists("/base_link"):
-            t = self.tf.getLatestCommonTime("/xtion_rgb_optical_frame", "/base_link")
-            _, quaternion = self.tf.lookupTransform("/xtion_rgb_optical_frame", "/base_link", t)
-            return quaternion
-        else:
-            perror("Cannot find tf between camera and gripper frames.\n Aborting")
-            exit(1)
 
     def grasp_callback(self, msg):
         self.grasps = msg.grasps
@@ -78,26 +66,16 @@ class GpdPickPlace(object):
             gp.header.frame_id = "xtion_rgb_optical_frame"
 
             quat = self.trans_matrix_to_quaternion(grasps[i])
-            q = [quat.elements[0], quat.elements[1], quat.elements[2], quat.elements[3]]
-
-            rot_q = quaternion_from_euler(math.radians(-90), math.radians(0), math.radians(0))
-
-            # q = quaternion_multiply(q, rot_q)
 
             # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
             gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
             gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
 
-            # gp.pose.orientation.x = float(quat.elements[1])
-            # gp.pose.orientation.y = float(quat.elements[2])
-            # gp.pose.orientation.z = float(quat.elements[3])
-            # gp.pose.orientation.w = - float(quat.elements[0])  # ??
-
-            gp.pose.orientation.w = - float(q[0])  # ??
-            gp.pose.orientation.x = float(q[1])
-            gp.pose.orientation.y = float(q[2])
-            gp.pose.orientation.z = float(q[3])
+            gp.pose.orientation.x = float(quat.elements[1])
+            gp.pose.orientation.y = float(quat.elements[2])
+            gp.pose.orientation.z = float(quat.elements[3])
+            gp.pose.orientation.w = - float(quat.elements[0])  # ??
 
             g.grasp_pose = gp
 
@@ -156,23 +134,27 @@ class GpdPickPlace(object):
 
             try:
                 pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+                if pick_result.error_code.val == 1:
+                    pevent("Grasp successful!")
+                    return single_grasp
+
             except AttributeError:
                 perror("All pick grasp poses failed!\n Aborting")
                 exit(1)
-
-            if pick_result.error_code.val == 1:
-                pevent("Grasp successful!")
-                return single_grasp
 
     def place(self, place_pose):
         pevent("Place sequence started")
 
         places = self.generate_place_poses(place_pose)
 
-        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>",# planner_id="gripper",
+        place_result = self.p.place_with_retry("obj", places, support_name="<octomap>",
                                                planning_time=9001, goal_is_eef=True)
 
-        pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
+        if place_result[0] == True:
+            pevent("Place succeeded!")
+        else:
+            pevent("Place failed!")
+
 
     def generate_place_poses(self, initial_place_pose):
         places = list()
@@ -254,7 +236,7 @@ class GpdPickPlace(object):
         gp.pose.position.y = -0.23707952283
         gp.pose.position.z = 0.493978534979
 
-        gp.pose.orientation.w =  -0.604815599864
+        gp.pose.orientation.w = -0.604815599864
         gp.pose.orientation.x = -0.132654186819
         gp.pose.orientation.y = 0.698958888788
         gp.pose.orientation.z = -0.357851126398
@@ -275,13 +257,13 @@ if __name__ == "__main__":
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
-    #
+    
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
     gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
-    #
-    # # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
+
+    # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     successful_grasp = pnp.pick(formatted_grasps, verbose=True)

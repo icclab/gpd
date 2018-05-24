@@ -58,6 +58,7 @@ class RobotPreparation(object):
         self.play_m_as.send_goal_and_wait(pmg)
         pevent("Done.")
 
+
 class GpdGrasps(object):
     raw_cloud = []
     filtered_cloud = pcl.PointCloud()
@@ -66,7 +67,6 @@ class GpdGrasps(object):
 
     def __init__(self, max_messages):
         self.max_messages = max_messages
-        # Subscribe to the ROS topic that contains the grasps.
         rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
 
     def cloud_callback(self, msg):
