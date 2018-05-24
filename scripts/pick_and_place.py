@@ -15,6 +15,7 @@ from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
+from tf.transformations import *
 
 
 class GpdPickPlace(object):
@@ -65,7 +66,9 @@ class GpdPickPlace(object):
             gp = PoseStamped()
             gp.header.frame_id = "xtion_rgb_optical_frame"
 
-            quat = self.trans_matrix_to_quaternion(grasps[i])
+            org_q = self.trans_matrix_to_quaternion(grasps[i])
+            rot_q = Quaternion(0.7071, 0.7071, 0, 0)
+            quat = rot_q * org_q
 
             # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
@@ -257,7 +260,7 @@ if __name__ == "__main__":
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
-    
+
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
     gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
