@@ -67,7 +67,7 @@ class GpdPickPlace(object):
             gp.header.frame_id = "xtion_rgb_optical_frame"
 
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-            rot_q = Quaternion(0.7071, 0.7071, 0, 0)
+            rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
             quat = rot_q * org_q
 
             # Move grasp back for given offset
@@ -79,6 +79,9 @@ class GpdPickPlace(object):
             gp.pose.orientation.y = float(quat.elements[2])
             gp.pose.orientation.z = float(quat.elements[3])
             gp.pose.orientation.w = - float(quat.elements[0])  # ??
+
+            print "Orientation:"
+            pprint(org_q)
 
             g.grasp_pose = gp
 
@@ -153,12 +156,6 @@ class GpdPickPlace(object):
         place_result = self.p.place_with_retry("obj", places, support_name="<octomap>",
                                                planning_time=9001, goal_is_eef=True)
 
-        if place_result[0] == True:
-            pevent("Place succeeded!")
-        else:
-            pevent("Place failed!")
-
-
     def generate_place_poses(self, initial_place_pose):
         places = list()
 
@@ -166,34 +163,17 @@ class GpdPickPlace(object):
         l.id = "dupadupa"
         l.place_pose.header.frame_id = "xtion_rgb_optical_frame"
 
-        # Whats happening here?
-        # Explanation: during grasp msg generation the grasp pose is moved back of the grasp_offset. Thats because
-        # moveit performs grasp until the gripper origin (wrist_roll_link) and gdp returns actual grasp pose (where the
-        # fingers should be closed)... Now to generate bunch of different orientations for planner by rotating original
-        # pose I need to go back to the original position. Basically I want just to rotate around place pose,
-        # not around the robot wrist
+        q = Quaternion(initial_place_pose.grasp_pose.pose.orientation.w,
+                                initial_place_pose.grasp_pose.pose.orientation.x,
+                                initial_place_pose.grasp_pose.pose.orientation.y,
+                                initial_place_pose.grasp_pose.pose.orientation.z)
 
-        # Find original grasp pose comparing its orientation initial_place_pose
-        pose_id = 1337
-        for i in range(0, 5):
-            q = self.trans_matrix_to_quaternion(self.grasps[i])
-            if (initial_place_pose.grasp_pose.pose.orientation.x == float(q.elements[1]) and
-                    initial_place_pose.grasp_pose.pose.orientation.y == float(q.elements[2]) and
-                    initial_place_pose.grasp_pose.pose.orientation.z == float(q.elements[3]) and
-                    initial_place_pose.grasp_pose.pose.orientation.w == - float(q.elements[0])):  # minus
-                pose_id = i
-
-        # Load original grasp pose position...
-        l.place_pose.pose.position.x = self.grasps[pose_id].surface.x
-        l.place_pose.pose.position.y = self.grasps[pose_id].surface.y
-        l.place_pose.pose.position.z = self.grasps[pose_id].surface.z
-
-        # ... and orientation
-        q = self.trans_matrix_to_quaternion(self.grasps[pose_id])
-        l.place_pose.pose.orientation.x = float(q.elements[1])
-        l.place_pose.pose.orientation.y = float(q.elements[2])
-        l.place_pose.pose.orientation.z = float(q.elements[3])
-        l.place_pose.pose.orientation.w = - float(q.elements[0])  # don't forget the minus sign
+        # Load succesful grasp pose
+        l.place_pose.pose.position = initial_place_pose.grasp_pose.pose.position
+        l.place_pose.pose.orientation.w = q.elements[0]
+        l.place_pose.pose.orientation.x = q.elements[1]
+        l.place_pose.pose.orientation.y = q.elements[2]
+        l.place_pose.pose.orientation.z = q.elements[3]
 
         # Move 20cm to the right
         l.place_pose.pose.position.y += 0.2
