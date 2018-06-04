@@ -20,6 +20,7 @@ class HackyGripperController:
 
         while not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
             perror("Could not connect to /play_motion AS")
+            rospy.sleep(1)
 
         pevent("Hacky Gripper Controller: Initialized")
 
