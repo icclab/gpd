@@ -4,9 +4,12 @@
 # How to start Tiago pick&place demo
 
 * run gripper_hack.py from gpd/scripts
-* roslaunch gpd fetch_playground.launch
+* roslaunch gpd tiago_playground.launch
 * run pick_and_place.py from gpd/scripts
 
+# Tricks:
+* package tiago_gazebo starts **joystick_relay** node by default, which consumes a lot of CPU resources and is not used in demo.
+You can comment out **twist_mux** in **/tiago_gazebo/launch/simulation_tiago_bringup.launch**
 
 # Grasp Pose Detection (GPD)
 
