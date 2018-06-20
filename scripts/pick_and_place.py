@@ -80,9 +80,6 @@ class GpdPickPlace(object):
             gp.pose.orientation.z = float(quat.elements[3])
             gp.pose.orientation.w = - float(quat.elements[0])  # ??
 
-            print "Orientation:"
-            pprint(org_q)
-
             g.grasp_pose = gp
 
             g.pre_grasp_approach.direction.header.frame_id = "arm_tool_link"
@@ -235,8 +232,8 @@ if __name__ == "__main__":
     # Tilt the head down to see the table
     robot = RobotPreparation()
     robot.look_down()
-    #robot.lift_torso()
-    robot.unfold_arm()
+    robot.lift_torso()
+    # robot.unfold_arm()
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
@@ -250,7 +247,7 @@ if __name__ == "__main__":
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     successful_grasp = pnp.pick(formatted_grasps, verbose=True)
-    #successful_grasp = pnp.get_know_successful_grasp()
+    # successful_grasp = pnp.get_know_successful_grasp()
 
     # Place object with successful grasp pose as the starting point
     pnp.place(successful_grasp)
