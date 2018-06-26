@@ -239,7 +239,7 @@ if __name__ == "__main__":
     pnp = GpdPickPlace(mark_pose=True)
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-    gpd_prep = GpdGrasps(max_messages=8)
+    gpd_prep = GpdGrasps(max_messages=1)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
 

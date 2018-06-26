@@ -12,13 +12,13 @@ class HackyGripperController:
     def __init__(self):
         rospy.init_node('gripper_controller')
 
-        self.server = SimpleActionServer('~hacky_gripper_controller', FollowJointTrajectoryAction,
+        self.server = SimpleActionServer('/gripper_controller/hacky_gripper_controller', FollowJointTrajectoryAction,
                                          execute_cb=self.gripper_callback, auto_start=False)
         self.server.start()
 
         self.play_m_as = SimpleActionClient('play_motion', PlayMotionAction)
 
-        while not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
+        while not self.play_m_as.wait_for_server():
             perror("Could not connect to /play_motion AS")
             rospy.sleep(1)
 
