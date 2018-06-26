@@ -99,6 +99,13 @@ RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
 # PCL
 RUN apt-get install -y libpcl-dev
 
+# Python PCL
+RUN pip install cython==0.25.2 numpy
+RUN git clone --branch master --depth 1 https://github.com/strawlab/python-pcl.git && \
+	cd python-pcl && \
+	python setup.py build_ext -i && \
+	python setup.py install
+
 
 # Build and install GPG
 RUN cd /opt && \
