@@ -8,25 +8,27 @@ from sensor_msgs import point_cloud2
 
 class DownsampleCloud():
     input_cloud = []
-    received_frame = False
+    received_frames = 0
+    max_frames = 8
 
     def __init__(self):
         rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
         self.pub = rospy.Publisher("/xtion/depth_registered/points_downsampled", PointCloud2, queue_size=10)
 
     def cloud_callback(self, msg):
-        for p in point_cloud2.read_points(msg, skip_nans=True):
-            self.input_cloud.append([p[0], p[1], p[2]])
-        self.received_frame = True
+        if self.received_frames < self.max_frames:
+            for p in point_cloud2.read_points(msg, skip_nans=True):
+                self.input_cloud.append([p[0], p[1], p[2]])
+            self.received_frames += 1
 
     def downsample_and_publish(self):
-        while not self.received_frame:  # wait until cloud_callback process full msg
+        while self.received_frames < self.max_frames:  # wait until cloud_callback processes 8 messages
             pass
-
-        self.received_frame = False
 
         downsampled_cloud = pcl.PointCloud()
         downsampled_cloud.from_array(np.asarray(self.input_cloud, dtype=np.float32))
+
+        self.received_frames = 0  # allow to copy next 8 msgs chunk
 
         pass_fill = downsampled_cloud.make_passthrough_filter()
         pass_fill.set_filter_field_name("z")
