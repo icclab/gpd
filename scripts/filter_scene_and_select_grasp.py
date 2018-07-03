@@ -5,13 +5,11 @@ from tools import *
 from scipy.linalg import lstsq
 from std_msgs.msg import Header, Int64
 from geometry_msgs.msg import Point
-from plane_segm import filter_cloud
+from plane_segm import filtering
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from gpd.msg import CloudIndexed
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from actionlib import SimpleActionClient
-from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
 
 
 # Point the head using controller
@@ -66,6 +64,8 @@ class GpdGrasps(object):
 
     def __init__(self, max_messages=8):
         self.max_messages = max_messages
+        pevent("Waiting for pointcloud")
+        rospy.sleep(3)
         rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
 
     def cloud_callback(self, msg):
@@ -81,7 +81,9 @@ class GpdGrasps(object):
 
         # Do filtering until filtering returns some points or user stops the script
         while self.filtered_cloud.size == 0:
-            self.filtered_cloud = filter_cloud(self.raw_cloud)
+            self.filtered_cloud = filtering(self.raw_cloud)
+
+            self.raw_cloud = None
 
             if self.filtered_cloud.size == 0:
                 perror("PointCloud after filtering is empty. Are you sure that object is visible for the robot? \nTrying again")
@@ -123,3 +125,4 @@ class GpdGrasps(object):
         pub.publish(msg)
         rospy.sleep(3.14)
         pevent('Published cloud with ' + str(len(msg.indices)) + ' indices')
+        pub.unregister()

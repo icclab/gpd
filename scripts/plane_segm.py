@@ -7,7 +7,7 @@ import rospy
 from tools import *
 
 
-def filter_cloud(raw_cloud):
+def filtering(raw_cloud):
     filtered_cloud = pcl.PointCloud()
     planes_cloud = pcl.PointCloud()
     filtered_cloud.from_array(np.asarray(raw_cloud, dtype=np.float32))
@@ -97,7 +97,7 @@ def filter_cloud(raw_cloud):
     obstacles_cloud.from_array(obstacles_points.astype(dtype=np.float32))
 
     pcl.save(extracted_object_cloud, "objects.pcd")
-    pcl.save(obstacles_cloud, "obstacles.pcd")
+    # pcl.save(obstacles_cloud, "obstacles.pcd")
 
     # Make a mesh from object pointcloud and save it to stl file to load if from moveit side
     create_mesh_and_save(extracted_object_cloud)

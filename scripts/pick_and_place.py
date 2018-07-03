@@ -3,6 +3,7 @@ import numpy as np
 import copy
 import tf
 import math
+import gc
 from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
@@ -165,7 +166,7 @@ class GpdPickPlace(object):
                                 initial_place_pose.grasp_pose.pose.orientation.y,
                                 initial_place_pose.grasp_pose.pose.orientation.z)
 
-        # Load succesful grasp pose
+        # Load successful grasp pose
         l.place_pose.pose.position = initial_place_pose.grasp_pose.pose.position
         l.place_pose.pose.orientation.w = q.elements[0]
         l.place_pose.pose.orientation.x = q.elements[1]
@@ -239,9 +240,13 @@ if __name__ == "__main__":
     pnp = GpdPickPlace(mark_pose=True)
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-    gpd_prep = GpdGrasps(max_messages=1)
+    gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
+
+    # Spawn garbage collector
+    del gpd_prep
+    gc.collect()
 
     # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
     selected_grasps = pnp.get_gpd_grasps()
