@@ -28,6 +28,7 @@ class DownsampleCloud():
         downsampled_cloud = pcl.PointCloud()
         downsampled_cloud.from_array(np.asarray(self.input_cloud, dtype=np.float32))
 
+        self.input_cloud = []  # clean input cloud
         self.received_frames = 0  # allow to copy next 8 msgs chunk
 
         pass_fill = downsampled_cloud.make_passthrough_filter()
@@ -42,8 +43,6 @@ class DownsampleCloud():
         msg_header = Header()
         msg_header.frame_id = "xtion_rgb_optical_frame"
         self.pub.publish(point_cloud2.create_cloud_xyz32(msg_header, downsampled_cloud.to_list()))
-
-        self.input_cloud = []  # clean input cloud
 
 
 if __name__ == '__main__':
