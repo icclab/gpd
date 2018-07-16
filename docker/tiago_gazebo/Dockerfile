@@ -21,7 +21,6 @@ RUN apt-get install -y\
 	mesa-common-dev-lts-wily\ 
 	libgles2-mesa-lts-wily\ 
 	libwayland-egl1-mesa-lts-wily 
-#	libopenvg1-mesa
 
 
 # The rest of ROS-desktop 
@@ -149,7 +148,7 @@ RUN source /opt/ros/kinetic/setup.bash && \
 	source /catkin_ws/devel/setup.bash
 
 
-# GPD + add and remove private key to clone it (BUILD THIS DOCKER IMAGE WITH --squash TO REMOVE IT FROM HISTORY)
+# GPD + add and private key to clone it (BUILD THIS DOCKER IMAGE WITH --squash TO REMOVE IT FROM HISTORY)
 ARG SSH_PRIVATE_KEY
 RUN mkdir /root/.ssh/ && \
 	echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
@@ -160,10 +159,9 @@ RUN touch /root/.ssh/known_hosts && \
 RUN cd catkin_ws/src && \
 	git clone git@srv-lab-t-401.zhaw.ch:cloudrobotics/gpd.git && \
 	cd .. && source /opt/ros/kinetic/setup.bash
-RUN rm -dr /root/.ssh/
 
 
-# Install and build Tiago pkgs
+# Install Tiago pkgs
 RUN source /opt/ros/kinetic/setup.bash && \
 	cd catkin_ws/ && \
 	wget https://raw.githubusercontent.com/pal-robotics/tiago_tutorials/kinetic-devel/tiago_public.rosinstall && \
@@ -171,6 +169,17 @@ RUN source /opt/ros/kinetic/setup.bash && \
 	rm /etc/ros/rosdep/sources.list.d/20-default.list &&\
 	rosdep init && \
 	rosdep update && \
-	rosdep install --from-paths src --ignore-src --rosdistro kinetic --skip-keys="opencv2 opencv2-nonfree pal_laser_filters speed_limit sensor_to_cloud hokuyo_node libdw-dev" && \
-	source /opt/ros/kinetic/setup.bash && \
+	rosdep install --from-paths src --ignore-src --rosdistro kinetic --skip-keys="opencv2 opencv2-nonfree pal_laser_filters speed_limit sensor_to_cloud hokuyo_node libdw-dev"
+
+
+# Replace tiago_moveit_config with custom pkg and remove private key
+RUN rm -dr /catkin_ws/src/tiago_moveit_config && \
+	cd catkin_ws/src && \
+	git clone git@srv-lab-t-401.zhaw.ch:cloudrobotics/tiago_moveit_config.git
+RUN rm -dr /root/.ssh/
+
+
+# Build workspace
+RUN source /opt/ros/kinetic/setup.bash && \
+	cd catkin_ws && \
 	catkin_make --cmake-args -DCATKIN_ENABLE_TESTING=0
