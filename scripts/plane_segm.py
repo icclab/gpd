@@ -4,10 +4,13 @@ import numpy as np
 import subprocess
 import vtk
 import rospy
+import datetime
 from tools import *
 
 
 def filtering(raw_cloud):
+    start_time = datetime.datetime.now()
+
     filtered_cloud = pcl.PointCloud()
     planes_cloud = pcl.PointCloud()
     filtered_cloud.from_array(np.asarray(raw_cloud, dtype=np.float32))
@@ -108,6 +111,8 @@ def filtering(raw_cloud):
 
     #pcd_2 = subprocess.Popen(
     #    ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=xtion_rgb_optical_frame'])
+
+    pinfo("Pointcloud filtering + obj extraction stage took: " + str(datetime.datetime.now() - start_time))
 
     # wait for pointcloud to be poublished and then stop
     rospy.sleep(3)

@@ -65,8 +65,8 @@ class GpdGrasps(object):
     def __init__(self, max_messages=8):
         self.max_messages = max_messages
         pevent("Waiting for pointcloud")
+        rospy.Subscriber("/xtion/depth_registered/points_downsampled", PointCloud2, self.cloud_callback)
         rospy.sleep(3)
-        rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
 
     def cloud_callback(self, msg):
         if self.message_counter < self.max_messages:

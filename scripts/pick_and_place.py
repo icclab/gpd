@@ -2,7 +2,7 @@ import rospy
 import numpy as np
 import copy
 import tf
-import math
+import datetime
 import gc
 from tools import *
 from pprint import pprint
@@ -204,6 +204,8 @@ class GpdPickPlace(object):
         obj_pose.orientation.w = 1
 
         planning.addMesh("obj", obj_pose, "object.stl", wait=True)
+        # rospy.sleep(3.14)
+        # pprint(planning.getKnownCollisionObjects())
 
     def get_know_successful_grasp(self):
 
@@ -228,6 +230,7 @@ class GpdPickPlace(object):
 
 
 if __name__ == "__main__":
+    start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
 
     # Tilt the head down to see the table
@@ -240,7 +243,7 @@ if __name__ == "__main__":
     pnp = GpdPickPlace(mark_pose=True)
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-    gpd_prep = GpdGrasps(max_messages=8)
+    gpd_prep = GpdGrasps(max_messages=1)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
 
@@ -256,3 +259,4 @@ if __name__ == "__main__":
 
     # Place object with successful grasp pose as the starting point
     pnp.place(successful_grasp)
+    pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
