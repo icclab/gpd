@@ -20,7 +20,10 @@ RUN apt-get install -y\
 	libgbm-dev-lts-wily\ 
 	mesa-common-dev-lts-wily\ 
 	libgles2-mesa-lts-wily\ 
-	libwayland-egl1-mesa-lts-wily 
+	libwayland-egl1-mesa-lts-wily\
+	libgl1-mesa-glx\
+	libgl1-mesa-dri\
+	xvfb
 
 
 # The rest of ROS-desktop 
@@ -35,6 +38,12 @@ RUN apt-get install -y \
 	apt-utils
 
 
+# Install Gazebo 7.4
+RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
+	wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - && \
+	apt-get -y update && apt-get install -y gazebo7 libignition-math2-dev
+
+
 # Moveit and arm related stuff
 RUN apt-get install -y \
 	ros-kinetic-ros-control \
@@ -43,8 +52,8 @@ RUN apt-get install -y \
 	ros-kinetic-gazebo-ros-control \
 	ros-kinetic-moveit-visual-tools \
 	ros-kinetic-moveit \
-	ros-kinetic-controller-manager \
-	ros-kinetic-gazebo-ros
+	ros-kinetic-controller-manager
+	#ros-kinetic-gazebo-ros
 
 
 # Install Tiago deps
@@ -183,3 +192,8 @@ RUN rm -dr /root/.ssh/
 RUN source /opt/ros/kinetic/setup.bash && \
 	cd catkin_ws && \
 	catkin_make --cmake-args -DCATKIN_ENABLE_TESTING=0
+
+# set entrypoint script to run demo
+COPY entrypoint.sh /usr/local/bin/
+ENTRYPOINT ["entrypoint.sh"]
+
