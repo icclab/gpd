@@ -66,6 +66,7 @@ class GpdGrasps(object):
         self.max_messages = max_messages
         pevent("Waiting for pointcloud")
         rospy.Subscriber("/xtion/depth_registered/points_downsampled", PointCloud2, self.cloud_callback)
+        self.cloud_indexed_pub = rospy.Publisher('/cloud_indexed', CloudIndexed, queue_size=1, latch=True)
         rospy.sleep(3)
 
     def cloud_callback(self, msg):
@@ -121,8 +122,7 @@ class GpdGrasps(object):
     def publish_indexed_cloud(self):
         msg = self.generate_cloud_indexed_msg()
 
-        pub = rospy.Publisher('cloud_indexed', CloudIndexed, queue_size=1, latch=True)
-        pub.publish(msg)
+        self.cloud_indexed_pub.publish(msg)
         rospy.sleep(3.14)
         pevent('Published cloud with ' + str(len(msg.indices)) + ' indices')
-        pub.unregister()
+        # self.cloud_indexed_pub.unregister()

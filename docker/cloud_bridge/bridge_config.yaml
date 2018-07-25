@@ -17,5 +17,6 @@ bridge_config:
       - planning_scene_world
       - move_group/monitored_planning_scene
       - attached_collision_object
+#      - cloud_indexed
     services:
       - apply_planning_scene
