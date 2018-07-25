@@ -166,7 +166,7 @@ RUN touch /root/.ssh/known_hosts && \
 	chmod 700 /root/.ssh && \
 	ssh-keyscan srv-lab-t-401.zhaw.ch >> /root/.ssh/known_hosts
 RUN cd catkin_ws/src && \
-	git clone git@srv-lab-t-401.zhaw.ch:cloudrobotics/gpd.git && \
+	git clone -b paper-devel git@srv-lab-t-401.zhaw.ch:cloudrobotics/gpd.git && \
 	cd .. && source /opt/ros/kinetic/setup.bash
 
 
