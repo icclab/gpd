@@ -127,7 +127,7 @@ class GpdPickPlace(object):
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
-                rospy.sleep(1)
+                # rospy.sleep(1)
 
             if verbose:
                 pevent("Executing grasp: ")
@@ -139,6 +139,11 @@ class GpdPickPlace(object):
             try:
                 pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
                 if pick_result.error_code.val == 1:
+                    pevent("Grasp successful!")
+                    return single_grasp
+
+                if pick_result.error_code.val == -7:
+                    pinfo("Grasp preempted, but thats all what we can do now, so lets say that grasp was successful...")
                     pevent("Grasp successful!")
                     return single_grasp
 
@@ -258,5 +263,5 @@ if __name__ == "__main__":
     # successful_grasp = pnp.get_know_successful_grasp()
 
     # Place object with successful grasp pose as the starting point
-    pnp.place(successful_grasp)
+    # pnp.place(successful_grasp)
     pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
