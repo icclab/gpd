@@ -48,11 +48,6 @@
       <!-- <pose>0.53 -0.05 1.2 0 0 0</pose> -->
       <pose>0.64 -0.04 0.81 0 0 -0.62</pose>
     </include>
-    <!-- Cube with ArUco markers on the sides -->
-    <include>
-      <uri>model://alvar_cube</uri>
-      <pose>0.53 -0.05 1.2 0 0 0</pose>
-    </include>
     <gui fullscreen="0">
       <camera name="user_camera">
         <pose>1.152670 -0.041479 3.496780 0.000000 1.123640 3.132190</pose>
