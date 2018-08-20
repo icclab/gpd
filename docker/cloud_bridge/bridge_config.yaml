@@ -2,11 +2,16 @@ bridge_config:
   broker:
     driver: kombu
     amqp:
-      host: 160.85.37.183
-      port: 5672 
-      user: tof
-      password: Cloud4Robotics
+      host: broker.apps.k8srod.ned.robopaas.io
+      port: 5050
+      user: rapyuta_robotics
+      password: ECRP_KTI_project
       vhost: /
+      ssl:
+        context:
+          cafile: /cacert.pem
+        server_hostname: broker.apps.k8srod.ned.robopaas.io
+
   endpoint:
 #    alias: local
     topics:
