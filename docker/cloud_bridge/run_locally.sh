@@ -1,0 +1,1 @@
+docker run --network host -v /home/fitter/catkin_ws/src/gpd/docker/cloud_bridge/bridge_config.yaml:/home/rosuser/catkin_ws/src/cloud_bridge/rr_cloud_bridge/config/bridge_config.yaml -v /home/fitter/catkin_ws/src/gpd/docker/cloud_bridge/cacert.pem:/cacert.pem --rm f937b37d489e
