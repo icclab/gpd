@@ -5,56 +5,10 @@ from tools import *
 from scipy.linalg import lstsq
 from std_msgs.msg import Header, Int64
 from geometry_msgs.msg import Point
-from plane_segm import filtering
+from pointcloud_operations import filtering
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from gpd.msg import CloudIndexed
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-
-# Point the head using controller
-class RobotPreparation(object):
-
-    def __init__(self):
-        # TODO: why it only works with latched topic?
-        self.head_cmd = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=1, latch=True)
-        self.torso_cmd = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=1, latch=True)
-        # self.play_m_as = SimpleActionClient('play_motion', PlayMotionAction)
-        # if not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
-        #     perror("Could not connect to /play_motion AS")
-        #     exit(1)
-
-
-    def look_down(self):
-        pevent("Moving head")
-        jt = JointTrajectory()
-        jt.joint_names = ['head_1_joint', 'head_2_joint']
-        jtp = JointTrajectoryPoint()
-        jtp.positions = [0.0, -0.7]
-        jtp.time_from_start = rospy.Duration(2.0)
-        jt.points.append(jtp)
-        self.head_cmd.publish(jt)
-        pevent("Done")
-
-    def lift_torso(self):
-        pevent("Moving torso up")
-        jt = JointTrajectory()
-        jt.joint_names = ['torso_lift_joint']
-        jtp = JointTrajectoryPoint()
-        jtp.positions = [0.34]
-        jtp.time_from_start = rospy.Duration(2.5)
-        jt.points.append(jtp)
-        self.torso_cmd.publish(jt)
-        rospy.sleep(5)
-        pevent("Done")
-
-    # def unfold_arm(self):
-    #     pevent("Unfolding arm")
-    #     pmg = PlayMotionGoal()
-    #     pmg.motion_name = 'pregrasp'
-    #     pmg.skip_planning = False
-    #     self.play_m_as.send_goal_and_wait(pmg)
-    #     pevent("Done.")
 
 
 class GpdGrasps(object):
@@ -65,7 +19,7 @@ class GpdGrasps(object):
     def __init__(self, max_messages=8):
         self.max_messages = max_messages
         pevent("Waiting for pointcloud")
-        rospy.Subscriber("/xtion/depth_registered/points_downsampled", PointCloud2, self.cloud_callback)
+        rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
         rospy.sleep(3)
 
     def cloud_callback(self, msg):

@@ -14,7 +14,8 @@ from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
-from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
+from gpd_controller import GpdGrasps
+from robot_controller import RobotPreparation
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 from tf.transformations import *
 
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     pnp = GpdPickPlace(mark_pose=True)
 
     # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-    gpd_prep = GpdGrasps(max_messages=1)
+    gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
 
