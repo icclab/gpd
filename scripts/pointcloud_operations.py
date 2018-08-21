@@ -99,8 +99,8 @@ def filtering(raw_cloud):
     obstacles_cloud = pcl.PointCloud()
     obstacles_cloud.from_array(obstacles_points.astype(dtype=np.float32))
 
-    pcl.save(extracted_object_cloud, "objects.pcd")
-    # pcl.save(obstacles_cloud, "obstacles.pcd")
+    # pcl.save(extracted_object_cloud, "objects.pcd")
+    pcl.save(obstacles_cloud, "obstacles.pcd")
 
     # Make a mesh from object pointcloud and save it to stl file to load if from moveit side
     create_mesh_and_save(extracted_object_cloud)

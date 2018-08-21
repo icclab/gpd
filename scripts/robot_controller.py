@@ -2,8 +2,8 @@ import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from tools import pevent
 
-class RobotPreparation(object):
 
+class RobotPreparation(object):
     def __init__(self):
         # TODO: why it only works with latched topic?
         self.head_cmd = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=1, latch=True)
@@ -12,7 +12,6 @@ class RobotPreparation(object):
         # if not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
         #     perror("Could not connect to /play_motion AS")
         #     exit(1)
-
 
     def look_down(self):
         pevent("Moving head")

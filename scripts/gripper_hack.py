@@ -29,9 +29,6 @@ class HackyGripperController:
         rospy.spin()
 
     def gripper_callback(self, goal):
-        # this can be useful:
-        # https://github.com/pal-robotics/pal_gripper/blob/indigo-devel/pal_gripper_controller_configuration/scripts/home_gripper.py
-
         # Pick'nPlace API wants to close the gripper, so do it
         if goal.trajectory.points[1].positions[0] == 0.0 and goal.trajectory.points[0].positions[0] > 0.04:
             pevent("Closing the gripper")

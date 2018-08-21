@@ -42,8 +42,6 @@ class GpdPickPlace(object):
         pevent("Received new grasps")
 
     def show_grasp_pose(self, publisher, grasp_pose):
-        # pinfo("Marker orientation:")
-        # pprint(grasp_pose.orientation)
         marker = Marker(
             type=Marker.ARROW,
             id=0,
@@ -120,6 +118,8 @@ class GpdPickPlace(object):
         return Quaternion(matrix=r)
 
     def pick(self, grasps_list, verbose=False):
+        failed_grasps = 0
+
         pevent("Pick sequence started")
 
         # Add object mesh to planning scene
@@ -137,15 +137,16 @@ class GpdPickPlace(object):
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
-            try:
-                pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
-                if pick_result.error_code.val == 1:
-                    pevent("Grasp successful!")
-                    return single_grasp
+            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
 
-            except AttributeError:
-                perror("All pick grasp poses failed!\n Aborting")
-                exit(1)
+            if pick_result.error_code.val == 1:
+                pevent("Grasp successful!")
+                return single_grasp
+            else:
+                failed_grasps += 1
+                if failed_grasps == 5:
+                    pevent("All grasps failed. Aborting")
+                    exit(1)
 
     def place(self, place_pose):
         pevent("Place sequence started")
@@ -247,10 +248,6 @@ if __name__ == "__main__":
     gpd_prep = GpdGrasps(max_messages=8)
     gpd_prep.filter_cloud()
     gpd_prep.publish_indexed_cloud()
-
-    # Spawn garbage collector
-    del gpd_prep
-    gc.collect()
 
     # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
     selected_grasps = pnp.get_gpd_grasps()
