@@ -5,69 +5,22 @@ from tools import *
 from scipy.linalg import lstsq
 from std_msgs.msg import Header, Int64
 from geometry_msgs.msg import Point
-from plane_segm import filter_cloud
+from pointcloud_operations import filtering
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from gpd.msg import CloudIndexed
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from actionlib import SimpleActionClient
-from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
-
-
-# Point the head using controller
-class RobotPreparation(object):
-
-    def __init__(self):
-        # TODO: why it only works with latched topic?
-        self.head_cmd = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=1, latch=True)
-        self.torso_cmd = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=1, latch=True)
-        self.play_m_as = SimpleActionClient('play_motion', PlayMotionAction)
-        if not self.play_m_as.wait_for_server(rospy.Duration(20.0)):
-            perror("Could not connect to /play_motion AS")
-            exit(1)
-
-
-    def look_down(self):
-        pevent("Moving head")
-        jt = JointTrajectory()
-        jt.joint_names = ['head_1_joint', 'head_2_joint']
-        jtp = JointTrajectoryPoint()
-        jtp.positions = [0.0, -0.7]
-        jtp.time_from_start = rospy.Duration(2.0)
-        jt.points.append(jtp)
-        self.head_cmd.publish(jt)
-        pevent("Done")
-
-    def lift_torso(self):
-        pevent("Moving torso up")
-        jt = JointTrajectory()
-        jt.joint_names = ['torso_lift_joint']
-        jtp = JointTrajectoryPoint()
-        jtp.positions = [0.34]
-        jtp.time_from_start = rospy.Duration(2.5)
-        jt.points.append(jtp)
-        self.torso_cmd.publish(jt)
-        rospy.sleep(5)
-        pevent("Done")
-
-    def unfold_arm(self):
-        pevent("Unfolding arm")
-        pmg = PlayMotionGoal()
-        pmg.motion_name = 'pregrasp'
-        pmg.skip_planning = False
-        self.play_m_as.send_goal_and_wait(pmg)
-        pevent("Done.")
 
 
 class GpdGrasps(object):
     raw_cloud = []
     filtered_cloud = pcl.PointCloud()
     message_counter = 0
-    max_messages = 8
 
-    def __init__(self, max_messages):
+    def __init__(self, max_messages=8):
         self.max_messages = max_messages
+        pevent("Waiting for pointcloud")
         rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
+        rospy.sleep(3)
 
     def cloud_callback(self, msg):
         if self.message_counter < self.max_messages:
@@ -77,22 +30,22 @@ class GpdGrasps(object):
 
     def filter_cloud(self):
         # Wait for point cloud to arrive.
-        while self.message_counter < 8:
+        while self.message_counter < self.max_messages:
             rospy.sleep(0.01)
 
         # Do filtering until filtering returns some points or user stops the script
         while self.filtered_cloud.size == 0:
-            self.filtered_cloud = filter_cloud(self.raw_cloud)
+            self.filtered_cloud = filtering(self.raw_cloud)
+
+            self.raw_cloud = None
 
             if self.filtered_cloud.size == 0:
                 perror("PointCloud after filtering is empty. Are you sure that object is visible for the robot? \nTrying again")
 
-
     def extract_indices(self):
         # Extract the nonplanar indices. Uses a least squares fit AX = b. Plane equation: z = ax + by + c.
 
-        np_cloud = self.filtered_cloud.to_array()
-        X = np_cloud
+        X = self.filtered_cloud.to_array()
         A = np.c_[X[:, 0], X[:, 1], np.ones(X.shape[0])]
         C, _, _, _ = lstsq(A, X[:, 2])
         a, b, c, d = C[0], C[1], -1., C[2]  # coefficients of the form: a*x + b*y + c*z + d = 0.
@@ -100,7 +53,7 @@ class GpdGrasps(object):
         # err = dist.sum()
         idx = np.where(dist > 0.001)
 
-        return np_cloud, idx
+        return X, idx
 
     def generate_cloud_indexed_msg(self):
         np_cloud, idx = self.extract_indices()
@@ -126,3 +79,4 @@ class GpdGrasps(object):
         pub.publish(msg)
         rospy.sleep(3.14)
         pevent('Published cloud with ' + str(len(msg.indices)) + ' indices')
+        pub.unregister()

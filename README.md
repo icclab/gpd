@@ -1,12 +1,25 @@
-# Branch currently contains WIP demo for Tiago robot
-# For Fetch demo version please use the **fetch-demo** branch
+Branch currently contains WIP demo for Tiago robot.
+For Fetch demo version please use the **fetch-demo** branch.
+The **paper-devel** branch contains demo used for the paper.
 
+---
 # How to start Tiago pick&place demo
 
-* run gripper_hack.py from gpd/scripts
-* roslaunch gpd fetch_playground.launch
-* run pick_and_place.py from gpd/scripts
+* run `python gripper_hack.py` from gpd/scripts
+* `roslaunch gpd tiago_playground.launch` (runs basic version of the demo, check another tiago_playground*.launch files)
+* run `python pick_and_place.py` from gpd/scripts
 
+# Using downsampled pointcloud:
+* additionally run `downsample_cloud.py` script which aggregates 8 frames from `/xtion/depth_registered/points` topic, downsamples them and then publishes data on the `/xtion/depth_registered/points_downsampled` rostopic
+* modify the pointcloud subscriber in the **22** LOC of `gpd_controller.py` to use the downsampled pointcloud topic
+* `pick_and_place.py` - in **247** LOC set the `max_messages` argument to 1
+* *TODO: Add option to pass the information about used version of the pointcloud to the script as an argument instead of modifying the code*
+
+# Tricks:
+* package tiago_gazebo starts **joystick_relay** node by default, which consumes a lot of CPU resources and is not used in the demo.
+You can comment out **twist_mux** in `/tiago_gazebo/launch/simulation_tiago_bringup.launch`
+* `perf.sh` script can be used for logging the CPU utilisation of multiple processes at once
+* *cloud grasping* paper contains some useful information about the demo structure
 
 # Grasp Pose Detection (GPD)
 

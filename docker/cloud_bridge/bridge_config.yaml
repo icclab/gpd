@@ -1,0 +1,26 @@
+bridge_config:
+  broker:
+    driver: kombu
+    amqp:
+      host: broker.apps.k8srod.ned.robopaas.io
+      port: 5050
+      user: rapyuta_robotics
+      password: ECRP_KTI_project
+      vhost: /
+      ssl:
+        context:
+          cafile: /cacert.pem
+        server_hostname: broker.apps.k8srod.ned.robopaas.io
+
+  endpoint:
+#    alias: local
+    topics:
+      - collision_object
+      - torso_controller/command
+      - head_controller/command
+      - planning_scene
+      - planning_scene_world
+      - move_group/monitored_planning_scene
+      - attached_collision_object
+    services:
+      - apply_planning_scene

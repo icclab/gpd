@@ -2,7 +2,8 @@ import rospy
 import numpy as np
 import copy
 import tf
-import math
+import datetime
+import gc
 from tools import *
 from pprint import pprint
 from pyquaternion import Quaternion
@@ -13,7 +14,8 @@ from geometry_msgs.msg import PoseStamped, Vector3, Pose
 from trajectory_msgs.msg import JointTrajectoryPoint
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
-from filter_scene_and_select_grasp import RobotPreparation, GpdGrasps
+from gpd_controller import GpdGrasps
+from robot_controller import RobotPreparation
 from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 from tf.transformations import *
 
@@ -40,8 +42,6 @@ class GpdPickPlace(object):
         pevent("Received new grasps")
 
     def show_grasp_pose(self, publisher, grasp_pose):
-        # pinfo("Marker orientation:")
-        # pprint(grasp_pose.orientation)
         marker = Marker(
             type=Marker.ARROW,
             id=0,
@@ -79,9 +79,6 @@ class GpdPickPlace(object):
             gp.pose.orientation.y = float(quat.elements[2])
             gp.pose.orientation.z = float(quat.elements[3])
             gp.pose.orientation.w = - float(quat.elements[0])  # ??
-
-            print "Orientation:"
-            pprint(org_q)
 
             g.grasp_pose = gp
 
@@ -121,6 +118,8 @@ class GpdPickPlace(object):
         return Quaternion(matrix=r)
 
     def pick(self, grasps_list, verbose=False):
+        failed_grasps = 0
+
         pevent("Pick sequence started")
 
         # Add object mesh to planning scene
@@ -138,15 +137,16 @@ class GpdPickPlace(object):
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
-            try:
-                pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
-                if pick_result.error_code.val == 1:
-                    pevent("Grasp successful!")
-                    return single_grasp
+            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
 
-            except AttributeError:
-                perror("All pick grasp poses failed!\n Aborting")
-                exit(1)
+            if pick_result.error_code.val == 1:
+                pevent("Grasp successful!")
+                return single_grasp
+            else:
+                failed_grasps += 1
+                if failed_grasps == 5:
+                    pevent("All grasps failed. Aborting")
+                    exit(1)
 
     def place(self, place_pose):
         pevent("Place sequence started")
@@ -168,7 +168,7 @@ class GpdPickPlace(object):
                                 initial_place_pose.grasp_pose.pose.orientation.y,
                                 initial_place_pose.grasp_pose.pose.orientation.z)
 
-        # Load succesful grasp pose
+        # Load successful grasp pose
         l.place_pose.pose.position = initial_place_pose.grasp_pose.pose.position
         l.place_pose.pose.orientation.w = q.elements[0]
         l.place_pose.pose.orientation.x = q.elements[1]
@@ -206,6 +206,8 @@ class GpdPickPlace(object):
         obj_pose.orientation.w = 1
 
         planning.addMesh("obj", obj_pose, "object.stl", wait=True)
+        # rospy.sleep(3.14)
+        # pprint(planning.getKnownCollisionObjects())
 
     def get_know_successful_grasp(self):
 
@@ -230,13 +232,14 @@ class GpdPickPlace(object):
 
 
 if __name__ == "__main__":
+    start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
 
     # Tilt the head down to see the table
     robot = RobotPreparation()
     robot.look_down()
-    #robot.lift_torso()
-    robot.unfold_arm()
+    robot.lift_torso()
+    # robot.unfold_arm()
 
     # Subscribe for grasps
     pnp = GpdPickPlace(mark_pose=True)
@@ -250,7 +253,8 @@ if __name__ == "__main__":
     selected_grasps = pnp.get_gpd_grasps()
     formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
     successful_grasp = pnp.pick(formatted_grasps, verbose=True)
-    #successful_grasp = pnp.get_know_successful_grasp()
+    # successful_grasp = pnp.get_know_successful_grasp()
 
     # Place object with successful grasp pose as the starting point
     pnp.place(successful_grasp)
+    pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))

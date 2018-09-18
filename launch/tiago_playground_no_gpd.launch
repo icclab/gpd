@@ -14,11 +14,4 @@
     <arg name="world"      value="tiago_pick_place"/>
     <arg name="gui"      value="$(arg gzclient)"/>
   </include>
-
-  <!-- Start gpd CNN -->
-  <include file="$(find gpd)/launch/grasp_generation.launch"/>
-
-
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find gpd)/config/tiago_playground.rviz"/>
-
 </launch>

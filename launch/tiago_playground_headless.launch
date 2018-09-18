@@ -3,7 +3,7 @@
 
   <arg name="robot"      default="steel"/>
   <arg name="public_sim" default="true"/>
-  <arg name="gzclient" default="true"/>
+  <arg name="gzclient" default="false"/>
 
   <env name="LC_NUMERIC" value="C" />
 
@@ -17,8 +17,5 @@
 
   <!-- Start gpd CNN -->
   <include file="$(find gpd)/launch/grasp_generation.launch"/>
-
-
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find gpd)/config/tiago_playground.rviz"/>
 
 </launch>
