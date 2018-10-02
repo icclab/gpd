@@ -4,8 +4,7 @@ project(gpd)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS cmake_modules eigen_conversions geometry_msgs message_generation roscpp 
-  sensor_msgs std_msgs)
+find_package(catkin REQUIRED COMPONENTS cmake_modules eigen_conversions geometry_msgs message_generation roscpp sensor_msgs std_msgs)
 
 # PCL
 find_package(PCL REQUIRED)
@@ -24,14 +23,25 @@ find_path(GENERATOR_LIB_INCLUDE_DIR gpg/grasp.h)
 include_directories(${GENERATOR_LIB_INCLUDE_DIR})
 
 # CAFFE
-IF(NOT EXISTS ${CAFFE_DIR})
+IF(NOT EXISTS ${Caffe_DIR})
   # SET(CAFFE_DIR "$ENV{CAFFE_DIR}")
-   SET(CAFFE_DIR "/home/fitter/Documents/caffe/build")
- ENDIF()
- MESSAGE("CAFFE_DIR: " ${CAFFE_DIR})
+   SET(Caffe_DIR "/opt/caffe/build")
+ENDIF()
+MESSAGE("Caffe_DIR: " ${Caffe_DIR})
 find_package(Caffe)
 include_directories(${Caffe_INCLUDE_DIRS})
+link_directories(${Caffe_LIBRARY_DIRS})
 add_definitions(${Caffe_DEFINITIONS})
+
+# Eigen
+SET(Eigen3_DIR "/usr/local/share/eigen3")
+find_package(Eigen3)
+#include_directories(${EIGEN3_INCLUDE_DIRS})
+#add_definitions(${EIGEN3_DEFINITIONS})
+
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
 ## Set compiler optimization flags
 set(CMAKE_CXX_FLAGS "-DNDEBUG -O3 -fopenmp -flto -Wno-deprecated -Wenum-compare")
@@ -119,7 +129,7 @@ generate_messages(DEPENDENCIES geometry_msgs sensor_msgs std_msgs)
 catkin_package(
 INCLUDE_DIRS include
 CATKIN_DEPENDS cmake_modules eigen_conversions geometry_msgs message_runtime roscpp sensor_msgs std_msgs
-DEPENDS Eigen OpenCV PCL
+DEPENDS EIGEN3 OpenCV PCL
 )
 
 ###########
