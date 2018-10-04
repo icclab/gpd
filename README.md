@@ -6,7 +6,7 @@ The **paper-devel** branch contains demo used for the paper.
 
 # ICCLab fork
 
-If you are using the robopaas/rosdocked-kinetic container, prerequisites for installing GDP are simpler.
+If you are using the robopaas/rosdocked-kinetic container (https://srv-lab-t-401.zhaw.ch/cloudrobotics/rosdocked), prerequisites for installing GDP are simpler.
 
 Follow these steps:
 
