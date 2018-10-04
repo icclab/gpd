@@ -1,4 +1,4 @@
-#include "../../include/gpd/grasp_detector.h"
+#include <gpd/grasp_detector.h>
 
 
 GraspDetector::GraspDetector(ros::NodeHandle& node)
@@ -48,14 +48,11 @@ GraspDetector::GraspDetector(ros::NodeHandle& node)
   candidates_generator_ = new CandidatesGenerator(generator_params, hand_search_params);
 
   // Read classification parameters and create classifier.
-  std::string model_file, weights_file;
-  bool use_gpu;
-  node.param("model_file", model_file, std::string(""));
-  node.param("trained_file", weights_file, std::string(""));
+  std::string lenet_params_dir;
+  node.param("lenet_params_dir", lenet_params_dir, std::string(""));
   node.param("min_score_diff", min_score_diff_, 500.0);
   node.param("create_image_batches", create_image_batches_, true);
-  node.param("use_gpu", use_gpu, true);
-  classifier_ = new CaffeClassifier(model_file, weights_file, use_gpu);
+  classifier_ = new Lenet(generator_params.num_threads_, lenet_params_dir);
 
   // Read grasp image parameters.
   node.param("image_outer_diameter", image_params_.outer_diameter_, hand_search_params.hand_outer_diameter_);
@@ -69,7 +66,8 @@ GraspDetector::GraspDetector(ros::NodeHandle& node)
   node.param("remove_plane_before_image_calculation", remove_plane, false);
 
   // Create object to create grasp images from grasp candidates (used for classification)
-  learning_ = new Learning(image_params_, hand_search_params.num_threads_, hand_search_params.num_orientations_, false, remove_plane);
+  learning_ = new Learning(image_params_, hand_search_params.num_threads_, hand_search_params.num_orientations_, false,
+                           remove_plane);
 
   // Read grasp filtering parameters
   node.param("filter_grasps", filter_grasps_, false);
@@ -80,6 +78,12 @@ GraspDetector::GraspDetector(ros::NodeHandle& node)
   node.getParam("gripper_width_range", gripper_width_range);
   min_aperture_ = gripper_width_range[0];
   max_aperture_ = gripper_width_range[1];
+
+  node.param("filter_table_side_grasps", filter_table_side_grasps_, false);
+  node.getParam("vertical_axis", vert_axis_);
+  node.param("angle_thresh", angle_thresh_, 0.1);
+  node.param("table_height", table_height_, 0.5);
+  node.param("table_thresh", table_thresh_, 0.05);
 
   // Read clustering parameters
   int min_inliers;
@@ -145,7 +149,13 @@ std::vector<Grasp> GraspDetector::detectGrasps(const CloudCamera& cloud_cam)
     }
   }
 
-  // 2.2 Filter half grasps.
+  // 2.2 Filter side grasps that are very close to the table.
+  if (filter_table_side_grasps_)
+  {
+    candidates = filterSideGraspsCloseToTable(candidates);
+  }
+
+  // 2.3 Filter half grasps.
   if (filter_half_antipodal_)
   {
     candidates = filterHalfAntipodal(candidates);
@@ -160,7 +170,7 @@ std::vector<Grasp> GraspDetector::detectGrasps(const CloudCamera& cloud_cam)
 
   // 3. Classify each grasp candidate. (Note: switch from a list of hypothesis sets to a list of grasp hypotheses)
   std::vector<Grasp> valid_grasps = classifyGraspCandidates(cloud_cam, candidates);
-  ROS_INFO_STREAM("Predicted " << valid_grasps.size() << " valid grasps.");
+  ROS_INFO_STREAM("Selected " << valid_grasps.size() << " valid grasps after predicting their scores.");
 
   if (valid_grasps.size() <= 2)
   {
@@ -184,8 +194,8 @@ std::vector<Grasp> GraspDetector::detectGrasps(const CloudCamera& cloud_cam)
     if (plot_clusters_)
     {
       const HandSearch::Parameters& params = candidates_generator_->getHandSearchParams();
-      plotter.plotFingers3D(clustered_grasps, cloud_cam.getCloudOriginal(), "Valid Grasps", params.hand_outer_diameter_,
-        params.finger_width_, params.hand_depth_, params.hand_height_);
+      plotter.plotFingers3D(clustered_grasps, cloud_cam.getCloudOriginal(), "Clustered Grasps",
+        params.hand_outer_diameter_, params.finger_width_, params.hand_depth_, params.hand_height_);
     }
   }
   else
@@ -193,21 +203,24 @@ std::vector<Grasp> GraspDetector::detectGrasps(const CloudCamera& cloud_cam)
     clustered_grasps = valid_grasps;
   }
 
-  // 5. Select highest-scoring grasps.
-  if (clustered_grasps.size() > num_selected_)
-  {
-    std::cout << "Partial Sorting the grasps based on their score ... \n";
-    std::partial_sort(clustered_grasps.begin(), clustered_grasps.begin() + num_selected_, clustered_grasps.end(),
-      isScoreGreater);
-    selected_grasps.assign(clustered_grasps.begin(), clustered_grasps.begin() + num_selected_);
-  }
-  else
-  {
-    std::cout << "Sorting the grasps based on their score ... \n";
-    std::sort(clustered_grasps.begin(), clustered_grasps.end(), isScoreGreater);
-    selected_grasps = clustered_grasps;
-  }
+//  // 5. Select highest-scoring grasps.
+//  if (clustered_grasps.size() > num_selected_)
+//  {
+//    std::cout << "Partial Sorting the grasps based on their score ... \n";
+//    std::partial_sort(clustered_grasps.begin(), clustered_grasps.begin() + num_selected_, clustered_grasps.end(),
+//      isScoreGreater);
+//    selected_grasps.assign(clustered_grasps.begin(), clustered_grasps.begin() + num_selected_);
+//  }
+//  else
+//  {
+//    std::cout << "Sorting the grasps based on their score ... \n";
+//    std::sort(clustered_grasps.begin(), clustered_grasps.end(), isScoreGreater);
+//    selected_grasps = clustered_grasps;
+//  }
 
+  std::cout << "==== Selected grasps ====\n";
+  selected_grasps = clustered_grasps;
+  std::sort(selected_grasps.begin(), selected_grasps.end(), isScoreGreater);
   for (int i = 0; i < selected_grasps.size(); i++)
   {
     std::cout << "Grasp " << i << ": " << selected_grasps[i].getScore() << "\n";
@@ -218,7 +231,7 @@ std::vector<Grasp> GraspDetector::detectGrasps(const CloudCamera& cloud_cam)
   if (plot_selected_grasps_)
   {
     const HandSearch::Parameters& params = candidates_generator_->getHandSearchParams();
-    plotter.plotFingers3D(selected_grasps, cloud_cam.getCloudOriginal(), "Valid Grasps", params.hand_outer_diameter_,
+    plotter.plotFingers3D(selected_grasps, cloud_cam.getCloudOriginal(), "Selected Grasps", params.hand_outer_diameter_,
       params.finger_width_, params.hand_depth_, params.hand_height_);
   }
 
@@ -245,43 +258,44 @@ std::vector<Grasp> GraspDetector::classifyGraspCandidates(const CloudCamera& clo
   double t0 = omp_get_wtime();
   std::cout << "Creating grasp images for classifier input ...\n";
   std::vector<float> scores;
-  std::vector<Grasp> grasp_list;
+  std::vector<Grasp> valid_grasps;
   int num_orientations = candidates[0].getHypotheses().size();
 
   // Create images in batches if required (less memory usage).
   if (create_image_batches_)
   {
-    int batch_size = classifier_->getBatchSize();
-    int num_iterations = (int) ceil(candidates.size() * num_orientations / (double) batch_size);
-    int step_size = (int) floor(batch_size / (double) num_orientations);
-    std::cout << " num_iterations: " << num_iterations << ", step_size: " << step_size << "\n";
-
-    // Process the grasp candidates in batches.
-    for (int i = 0; i < num_iterations; i++)
-    {
-      std::cout << i << "\n";
-      std::vector<GraspSet>::iterator start = candidates.begin() + i * step_size;
-      std::vector<GraspSet>::iterator stop;
-      if (i < num_iterations - 1)
-      {
-        stop = candidates.begin() + i * step_size + step_size;
-      }
-      else
-      {
-        stop = candidates.end();
-      }
-
-      std::vector<GraspSet> hand_set_sublist(start, stop);
-      std::vector<cv::Mat> image_list = learning_->createImages(cloud_cam, hand_set_sublist);
-
-      std::vector<Grasp> valid_grasps;
-      std::vector<cv::Mat> valid_images;
-      extractGraspsAndImages(candidates, image_list, valid_grasps, valid_images);
-
-      std::vector<float> scores_sublist = classifier_->classifyImages(valid_images);
-      scores.insert(scores.end(), scores_sublist.begin(), scores_sublist.end());
-      grasp_list.insert(grasp_list.end(), valid_grasps.begin(), valid_grasps.end());
-    }
+      // TODO: implement this
+//    int batch_size = classifier_->getBatchSize();
+//    int num_iterations = (int) ceil(candidates.size() * num_orientations / (double) batch_size);
+//    int step_size = (int) floor(batch_size / (double) num_orientations);
+//    std::cout << " num_iterations: " << num_iterations << ", step_size: " << step_size << "\n";
+//
+//    // Process the grasp candidates in batches.
+//    for (int i = 0; i < num_iterations; i++)
+//    {
+//      std::cout << i << "\n";
+//      std::vector<GraspSet>::iterator start = candidates.begin() + i * step_size;
+//      std::vector<GraspSet>::iterator stop;
+//      if (i < num_iterations - 1)
+//      {
+//        stop = candidates.begin() + i * step_size + step_size;
+//      }
+//      else
+//      {
+//        stop = candidates.end();
+//      }
+//
+//      std::vector<GraspSet> hand_set_sublist(start, stop);
+//      std::vector<cv::Mat> image_list = learning_->createImages(cloud_cam, hand_set_sublist);
+//
+//      std::vector<Grasp> valid_grasps;
+//      std::vector<cv::Mat> valid_images;
+//      extractGraspsAndImages(candidates, image_list, valid_grasps, valid_images);
+//
+//      std::vector<float> scores_sublist = classifier_->classifyImages(valid_images);
+//      scores.insert(scores.end(), scores_sublist.begin(), scores_sublist.end());
+//      grasp_list.insert(grasp_list.end(), valid_grasps.begin(), valid_grasps.end());
+//    }
   }
   else
   {
@@ -289,32 +303,50 @@ std::vector<Grasp> GraspDetector::classifyGraspCandidates(const CloudCamera& clo
     std::vector<cv::Mat> image_list = learning_->createImages(cloud_cam, candidates);
     std::cout << " Image creation time: " << omp_get_wtime() - t0 << std::endl;
 
-    std::vector<Grasp> valid_grasps;
     std::vector<cv::Mat> valid_images;
     extractGraspsAndImages(candidates, image_list, valid_grasps, valid_images);
+    std::cout << " image_list: " << image_list.size() << ", valid_images: " << valid_images.size()
+      << ", valid_grasps: " << valid_grasps.size() << std::endl;
 
     // Classify the grasp images.
     double t0_prediction = omp_get_wtime();
     scores = classifier_->classifyImages(valid_images);
-    grasp_list.assign(valid_grasps.begin(), valid_grasps.end());
     std::cout << " Prediction time: " << omp_get_wtime() - t0 << std::endl;
-  }
 
-  // Select grasps with a score of at least <min_score_diff_>.
-  std::vector<Grasp> valid_grasps;
-
-  for (int i = 0; i < grasp_list.size(); i++)
-  {
-    if (scores[i] >= min_score_diff_)
+    for (int i = 0; i < valid_grasps.size(); i++)
     {
-      std::cout << "grasp #" << i << ", score: " << scores[i] << "\n";
-      valid_grasps.push_back(grasp_list[i]);
-      valid_grasps[valid_grasps.size() - 1].setScore(scores[i]);
-      valid_grasps[valid_grasps.size() - 1].setFullAntipodal(true);
+      valid_grasps[i].setScore(scores[i]);
     }
   }
 
-  std::cout << "Found " << valid_grasps.size() << " grasps with a score >= " << min_score_diff_ << "\n";
+  // Select the <num_selected_>-highest scoring grasps.
+  std::cout << "Selecting the " << num_selected_ << " highest scoring grasps ..." << std::endl;
+  int middle = std::min((int) valid_grasps.size(), num_selected_);
+  std::partial_sort(valid_grasps.begin(), valid_grasps.begin() + middle, valid_grasps.end(), isScoreGreater);
+  std::vector<Grasp> selected_grasps(valid_grasps.begin(), valid_grasps.begin() + middle);
+
+  for (int i = 0; i < middle; i++)
+  {
+    std::cout << " grasp #" << i << ", score: " << valid_grasps[i].getScore() << ", " << selected_grasps[i].getScore() << "\n";
+  }
+
+  // Select grasps with a score of at least <min_score_diff_>.
+//  std::vector<Grasp> valid_grasps;
+//
+//  for (int i = 0; i < grasp_list.size(); i++)
+//  {
+//    std::cout << "grasp #" << i << ", score: " << scores[i] << "\n";
+//
+//    if (scores[i] >= min_score_diff_)
+//    {
+//      std::cout << " grasp #" << i << ", score: " << scores[i] << "\n";
+//      valid_grasps.push_back(grasp_list[i]);
+//      valid_grasps[valid_grasps.size() - 1].setScore(scores[i]);
+//      valid_grasps[valid_grasps.size() - 1].setFullAntipodal(true);
+//    }
+//  }
+//  std::cout << "Found " << valid_grasps.size() << " grasps with a score >= " << min_score_diff_ << "\n";
+
   std::cout << "Total classification time: " << omp_get_wtime() - t0 << std::endl;
 
   if (plot_valid_grasps_)
@@ -325,7 +357,7 @@ std::vector<Grasp> GraspDetector::classifyGraspCandidates(const CloudCamera& clo
       params.finger_width_, params.hand_depth_, params.hand_height_);
   }
 
-  return valid_grasps;
+  return selected_grasps;
 }
 
 
@@ -379,6 +411,53 @@ std::vector<GraspSet> GraspDetector::filterGraspsWorkspace(const std::vector<Gra
   }
 
   ROS_INFO_STREAM("# grasps within workspace and gripper width: " << remaining);
+
+  return hand_set_list_out;
+}
+
+
+std::vector<GraspSet> GraspDetector::filterSideGraspsCloseToTable(const std::vector<GraspSet>& hand_set_list)
+{
+  const double APPROACH_LENGTH = 0.05;
+
+  int remaining = 0;
+  std::vector<GraspSet> hand_set_list_out;
+  Eigen::Vector3d vert_axis_vec;
+  vert_axis_vec << vert_axis_[0], vert_axis_[1], vert_axis_[2];
+
+  for (int i = 0; i < hand_set_list.size(); i++)
+  {
+    const std::vector<Grasp>& hands = hand_set_list[i].getHypotheses();
+    Eigen::Array<bool, 1, Eigen::Dynamic> is_valid = hand_set_list[i].getIsValid();
+
+    for (int j = 0; j < hands.size(); j++)
+    {
+      if (is_valid(j))
+      {
+        double angle = fabs(vert_axis_vec.transpose() * hands[i].getApproach());
+        double dist = fabs((hands[i].getGraspBottom() - APPROACH_LENGTH*hands[i].getApproach())(2)) - table_height_;
+
+        // This is a side grasps that is too close to the table.
+        if (angle > angle_thresh_ && dist < table_thresh_)
+        {
+          is_valid(j) = false;
+        }
+        else
+        {
+          is_valid(j) = true;
+          remaining++;
+        }
+      }
+    }
+
+    if (is_valid.any())
+    {
+      hand_set_list_out.push_back(hand_set_list[i]);
+      hand_set_list_out[hand_set_list_out.size() - 1].setIsValid(is_valid);
+    }
+  }
+
+  ROS_INFO_STREAM("# grasps that are not too close to the table: " << remaining);
 
   return hand_set_list_out;
 }

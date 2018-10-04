@@ -3,8 +3,27 @@ For Fetch demo version please use the **fetch-demo** branch.
 The **paper-devel** branch contains demo used for the paper.
 
 ---
+
+# ICCLab fork
+
+If you are using the robopaas/rosdocked-kinetic container, prerequisites for installing GDP are simpler.
+
+Follow these steps:
+
+1. Install tiago catkin workspace for kinetic and build it (https://wiki.ros.org/Robots/TIAGo/Tutorials/Installation/TiagoSimulation)
+
+2. Source multiple workspaces (consider your own correct paths): 
+	
+		source ~/workspace/catkin_ws/devel/setup.bash
+		source ~/workspace/tiago_public_ws/devel/setup.bash –extend
+
+3. Clone this this project and build it in your catkin workspace
+
+Once everything is built, you can run the Tiago pick&place demo
+
 # How to start Tiago pick&place demo
 
+* start roscore
 * run `python gripper_hack.py` from gpd/scripts
 * `roslaunch gpd tiago_playground.launch` (runs basic version of the demo, check another tiago_playground*.launch files)
 * run `python pick_and_place.py` from gpd/scripts
@@ -33,7 +52,9 @@ You can comment out **twist_mux** in `/tiago_gazebo/launch/simulation_tiago_brin
 
 This package detects 6-DOF grasp poses for a 2-finger grasp (e.g. a parallel jaw gripper) in 3D point clouds.
 
-<!-- <img src="readme/examples.png" alt="" style="width: 400px;"/> -->
+**Note: This version does not require Caffe.**
+
+<img src="readme/clutter.png"/>
 
 Grasp pose detection consists of three steps: sampling a large number of grasp candidates, classifying these candidates 
 as viable grasps or not, and clustering viable grasps which are geometrically similar.
@@ -51,8 +72,7 @@ alt="UR5 demo" width="640" height="480" border="0" /></a>
 
 1. [PCL 1.7 or later](http://pointclouds.org/)
 2. [Eigen 3.0 or later](https://eigen.tuxfamily.org)
-3. [Caffe](http://caffe.berkeleyvision.org/)
-4. <a href="http://wiki.ros.org/indigo" style="color:blue">ROS Indigo</a> <span style="color:blue">and Ubuntu 
+3. <a href="http://wiki.ros.org/indigo" style="color:blue">ROS Indigo</a> <span style="color:blue">and Ubuntu 
 14.04</span> *or* <a href="http://wiki.ros.org/kinetic" style="color:orange">ROS Kinetic</a> 
 <span style="color:orange">and Ubuntu 16.04</span>
 
@@ -62,29 +82,17 @@ alt="UR5 demo" width="640" height="480" border="0" /></a>
 The following instructions work for **Ubuntu 14.04** or **Ubuntu 16.04**. Similar instructions should work for other 
 Linux distributions that support ROS.
 
- 1. Install Caffe [(Instructions)](http://caffe.berkeleyvision.org/installation.html). Follow the 
-[CMake Build instructions](http://caffe.berkeleyvision.org/installation.html#cmake-build). **Notice for Ubuntu 14.04:** 
-Due to a conflict between the Boost version required by Caffe (1.55) and the one installed as a dependency with the 
-Debian package for ROS Indigo (1.54), you need to checkout an older version of Caffe that worked with Boost 1.54. So, 
-when you clone Caffe, please use this command.
-   
-    ```
-    git clone https://github.com/BVLC/caffe.git && cd caffe
-    git checkout 923e7e8b6337f610115ae28859408bc392d13136
-    ```
-
-2. Install ROS. In Ubuntu 14.04, install ROS Indigo [(Instructions)](http://wiki.ros.org/indigo/Installation/Ubuntu). 
+1. Install ROS. In Ubuntu 14.04, install ROS Indigo [(Instructions)](http://wiki.ros.org/indigo/Installation/Ubuntu). 
 In Ubuntu 16.04, install ROS Kinetic [(Instructions)](http://wiki.ros.org/kinetic/Installation/Ubuntu).
 
-
-3. Clone the [grasp_pose_generator](https://github.com/atenpas/gpg) repository into some folder:
+2. Clone the [grasp_pose_generator](https://github.com/atenpas/gpg) repository into some folder:
 
    ```
    cd <location_of_your_workspace>
    git clone https://github.com/atenpas/gpg.git
    ```
 
-4. Build and install the *grasp_pose_generator*: 
+3. Build and install the *grasp_pose_generator*: 
 
    ```
    cd gpg

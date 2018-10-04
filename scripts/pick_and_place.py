@@ -205,7 +205,7 @@ class GpdPickPlace(object):
         obj_pose.orientation.z = 0
         obj_pose.orientation.w = 1
 
-        planning.addMesh("obj", obj_pose, "object.stl", wait=True)
+        planning.addMesh("obj", obj_pose, "object.stl")
         # rospy.sleep(3.14)
         # pprint(planning.getKnownCollisionObjects())
 
