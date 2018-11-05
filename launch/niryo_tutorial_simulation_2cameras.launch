@@ -26,23 +26,23 @@
     <arg name="execute_on_niryo_one_raspberry_pi_image" value="false"/>
     <arg name="urdf_without_meshes" default="false" />
 
-    <include file="$(find niryo_one_bringup)/launch/niryo_one_base.launch" pass_all_args="true"/>  
-    <!--    <include file="$(find niryo_one_bringup)/launch/niryo_one_base_with_2cameras.launch" pass_all_args="true"/> -->
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base.launch" pass_all_args="true"/>  
+    <!--    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base_with_2cameras.launch" pass_all_args="true"/> -->
    <!--   <node pkg="tf" type="static_transform_publisher" name="D415_link_broadcaster" args="0.425 -0.04 0.37 3.14 1.57 0 base_link camera1_link 100" /> on top
      <node pkg="tf" type="static_transform_publisher" name="D435_link_broadcaster" args="0.425  0.36 0.1  4.71    0    0 base_link camera2_link 100" /> at the side -->
 
      <node pkg="tf" type="static_transform_publisher" name="D415_link_broadcaster" args="0.1 0.3 0.11  5.495  0.52  0 base_link camera_link 100" /> 
      <node pkg="tf" type="static_transform_publisher" name="D435_link_broadcaster" args="0.1 -0.3 0.11  0.785  0.52   0 base_link camera2_link 100" /> 
 
-    <include file="$(find niryo_one_bringup)/launch/controllers.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/controllers.launch">
         <arg name="simulation_mode" value="true" />
     </include>
 
-    <include file="$(find niryo_one_bringup)/launch/robot_commander.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/robot_commander.launch">
         <arg name="simulation_mode" value="true" />
     </include>
 
-    <include file="$(find niryo_one_bringup)/launch/user_interface.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/user_interface.launch">
         <arg name="simulation_mode" value="true" />
     </include>
  

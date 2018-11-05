@@ -23,9 +23,17 @@ Once everything is built, you can run the Tiago pick&place demo
 
 # How to start pick&place demo on Niryo arm
 
-* start the Niryo arm, calibrate it and setup networking with local laptop 
+
+1. Install Intel® RealSense™ SDK 2.0 (https://github.com/IntelRealSense/librealsense)
+
+2. Start the Niryo arm, calibrate it, setup the networking aking sure the arm can communicate with local laptop (http://wiki.ros.org/turtlebot/Tutorials/indigo/Network%20Configuration)
+
+3. Find out transformations between camera and arm and modify the launch files
+	
+
 * run `roslaunch niryo_tutorial_onrobot.launch` from gpd/launch (for simulation use niryo_tutorial_simulation.launch)
 * run `python pick_and_place_niryo_on_arm.py` from gpd/scripts (for simulation use pick_and_place_niryo_simulation.py)
+* try out the 2 camera files for simulation and real arm operations
 
 # How to start Tiago pick&place demo
 

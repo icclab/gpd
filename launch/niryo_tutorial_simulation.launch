@@ -10,19 +10,19 @@
     <arg name="execute_on_niryo_one_raspberry_pi_image" value="false"/>
     <arg name="urdf_without_meshes" default="false" />
 
-  <!--   <include file="$(find niryo_one_bringup)/launch/niryo_one_base.launch" pass_all_args="true"/> -->
-     <include file="$(find niryo_one_bringup)/launch/niryo_one_base_withcamera.launch" pass_all_args="true"/> -->
-    <!--   <node pkg="tf" type="static_transform_publisher" name="camera_link_broadcaster" args="0 0.15 0.1 0 0 0 base_link camera_link 100" /> -->
+   <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base.launch" pass_all_args="true"/> 
+   <!--    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base_withcamera.launch" pass_all_args="true"/> -->
+      <node pkg="tf" type="static_transform_publisher" name="camera_link_broadcaster" args="0 0.15 0.1 0 0 0 base_link camera_link 100" /> 
 
-    <include file="$(find niryo_one_bringup)/launch/controllers.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/controllers.launch">
         <arg name="simulation_mode" value="true" />
     </include>
 
-    <include file="$(find niryo_one_bringup)/launch/robot_commander.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/robot_commander.launch">
         <arg name="simulation_mode" value="true" />
     </include>
 
-    <include file="$(find niryo_one_bringup)/launch/user_interface.launch">
+    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/user_interface.launch">
         <arg name="simulation_mode" value="true" />
     </include>
  
