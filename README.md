@@ -1,4 +1,4 @@
-Branch currently contains WIP demo for Tiago robot.
+Branch currently contains WIP demo for Tiago robot and demos for Niryo arm.
 For Fetch demo version please use the **fetch-demo** branch.
 The **paper-devel** branch contains demo used for the paper.
 
@@ -20,6 +20,12 @@ Follow these steps:
 3. Clone this this project and build it in your catkin workspace
 
 Once everything is built, you can run the Tiago pick&place demo
+
+# How to start pick&place demo on Niryo arm
+
+* start the Niryo arm, calibrate it and setup networking with local laptop 
+* run `roslaunch niryo_tutorial_onrobot.launch` from gpd/launch (for simulation use niryo_tutorial_simulation.launch)
+* run `python pick_and_place_niryo_on_arm.py` from gpd/scripts (for simulation use pick_and_place_niryo_simulation.py)
 
 # How to start Tiago pick&place demo
 
