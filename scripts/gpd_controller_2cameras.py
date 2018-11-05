@@ -16,16 +16,24 @@ class GpdGrasps(object):
     filtered_cloud = pcl.PointCloud()
     message_counter = 0
 
-    def __init__(self, max_messages=8):
+    def __init__(self, max_messages=20):
         self.max_messages = max_messages
         pevent("Waiting for pointcloud")
         rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.cloud_callback)
-     #   rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
+        rospy.Subscriber("/camera2/depth_registered/points", PointCloud2, self.cloud_callback2)
         rospy.sleep(3)
+
+    def cloud_callback2(self, msg):
+        if self.message_counter < self.max_messages:
+            self.message_counter += 1
+            print ("camera 2:")
+            for p in point_cloud2.read_points(msg, skip_nans=True):
+                self.raw_cloud.append([p[0], p[1], p[2]])
 
     def cloud_callback(self, msg):
         if self.message_counter < self.max_messages:
             self.message_counter += 1
+            print(" camera 1:")
             for p in point_cloud2.read_points(msg, skip_nans=True):
                 self.raw_cloud.append([p[0], p[1], p[2]])
 
