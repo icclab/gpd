@@ -105,15 +105,10 @@ class GpdPickPlace(object):
             gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
             gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
         #why this like Lukasz?
-        #    gp.pose.orientation.x = float(quat.elements[1])
-        #    gp.pose.orientation.y = float(quat.elements[2])
-        #    gp.pose.orientation.z = float(quat.elements[3])
-         #   gp.pose.orientation.w = - float(quat.elements[0])  # ??
-
-            gp.pose.orientation.x = float(quat.elements[0])
-            gp.pose.orientation.y = float(quat.elements[1])
-            gp.pose.orientation.z = float(quat.elements[2])
-            gp.pose.orientation.w = float(quat.elements[3])  # ??
+            gp.pose.orientation.x = float(quat.elements[1])
+            gp.pose.orientation.y = float(quat.elements[2])
+            gp.pose.orientation.z = float(quat.elements[3])
+            gp.pose.orientation.w = float(quat.elements[0])
 
 
             g.grasp_pose = gp
