@@ -114,7 +114,7 @@ class GpdPickPlace(object):
             gp.pose.orientation.x = float(quat.elements[0])
             gp.pose.orientation.y = float(quat.elements[1])
             gp.pose.orientation.z = float(quat.elements[2])
-            gp.pose.orientation.w = -float(quat.elements[3])  # ??
+            gp.pose.orientation.w = float(quat.elements[3])  # ??
 
             g.grasp_pose = gp
 
@@ -152,9 +152,9 @@ class GpdPickPlace(object):
         return formatted_grasps
 
     def trans_matrix_to_quaternion(self, grasp):
-        r = np.array([[grasp.approach.x, grasp.approach.y, grasp.approach.z],
-                      [grasp.binormal.x, grasp.binormal.y, grasp.binormal.z],
-                      [grasp.axis.x, grasp.axis.y, grasp.axis.z]])
+        r = np.array([[grasp.approach.x, grasp.binormal.x, grasp.axis.x],
+                      [grasp.approach.y, grasp.binormal.y, grasp.axis.y],
+                      [grasp.approach.z, grasp.binormal.z, grasp.axis.z]])
         return Quaternion(matrix=r)
 
     def pick(self, grasps_list, verbose=False):
