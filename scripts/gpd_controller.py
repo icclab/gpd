@@ -19,7 +19,8 @@ class GpdGrasps(object):
     def __init__(self, max_messages=8):
         self.max_messages = max_messages
         pevent("Waiting for pointcloud")
-        rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
+        rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.cloud_callback)
+     #   rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.cloud_callback)
         rospy.sleep(3)
 
     def cloud_callback(self, msg):
@@ -60,7 +61,9 @@ class GpdGrasps(object):
 
         msg = CloudIndexed()
         header = Header()
-        header.frame_id = "xtion_rgb_optical_frame"
+      #  header.frame_id = "xtion_rgb_optical_frame"
+
+        header.frame_id = "camera_depth_optical_frame"
         header.stamp = rospy.Time.now()
         msg.cloud_sources.cloud = point_cloud2.create_cloud_xyz32(header, np_cloud.tolist())
         msg.cloud_sources.view_points.append(Point(0, 0, 0))
