@@ -54,6 +54,11 @@ def __init__(self,
 
         self._place_action = actionlib.SimpleActionClient(ns+"place",
                                                           PlaceAction)
+                                                          
+                                                          
+
+
+To test the code, add an object in Gazebo in front of the robot. Move first the arm using RVIZ so that it is on top of the object. Make sure in Rviz the markers and grasps are activated. Then run the python script.                                                        
 
 # How to start pick&place demo on Niryo arm
 
