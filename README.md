@@ -21,6 +21,40 @@ Follow these steps:
 
 Once everything is built, you can run the Tiago pick&place demo
 
+
+# How to start pick&place demo on summit_xl robot
+
+First you need the icclab_turtlebot project installed and run the summit_xl robot simulation plus demo:
+
+1. roslaunch icclab_turtlebot irlab_sim_summit_xls_complete.launch
+
+2. ROS_NAMESPACE=summit_xl roslaunch robotnik_ur5_moveit_config demo.launch
+
+
+Then you need to run the grasp generator and the python script in the gpd project:
+
+3. roslaunch gpd grasp_generation.launch
+
+4. python pick_and_place_summit_simulation.py 
+	
+
+Note that to make the scripts work with the namespace needed for the summit_xl robot some changes needed to be made in the pick_place_interface.py file which is found in /opt/ros/kinetic/lib/python2.7/dist-packages/moveit_python. In particular the constructor needs a new field that is to be passed during initialization of pick_action and place_action. See the code snippet below:
+
+def __init__(self,
+                 group="arm",
+                 ee_group="gripper",
+                 plan_only=False,
+                 verbose=False,
+                 ns=""):
+
+
+        self._pick_action = actionlib.SimpleActionClient(ns+"pickup",
+                                                         PickupAction)
+
+
+        self._place_action = actionlib.SimpleActionClient(ns+"place",
+                                                          PlaceAction)
+
 # How to start pick&place demo on Niryo arm
 
 
