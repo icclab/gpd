@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+ 
+  <!-- Start gpd CNN -->
+  <include file="$(find gpd)/launch/grasp_generation.launch"/>
+  <include file="$(find realsense2_camera)/launch/rs_rgbd.launch"/>
+
+
+    <arg name="execute_on_niryo_one_raspberry_pi_image" value="true"/>
+    <arg name="urdf_without_meshes" default="false" />
+   <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base.launch" pass_all_args="true"/> 
+   <!--    <include file="$(find gpd)/niryo/niryo_one_bringup/launch/niryo_one_base_withcamera.launch" pass_all_args="true"/> -->
+ <!--   <node pkg="tf" type="static_transform_publisher" name="camera_link_broadcaster" args="0.395 -0.03 0.36 3.14 1.57 0 base_link camera_link 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="camera_link_broadcaster" args="0.68 -0.0 0.4 3.14 0.79 0 base_link camera_link 100" /> 
+  <!--    <node pkg="tf" type="static_transform_publisher" name="camera_link_broadcaster" args="-0.2 -0.2 0.11 0 0 0 base_link camera_link 100" /> -->
+
+
+
+
+ 
+    <node name="tf2_web_republisher" pkg="tf2_web_republisher" type="tf2_web_republisher"/>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+
+   
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gpd)/tutorials/tutorial_niryo.rviz" />
+
+</launch>
+
+
+
+

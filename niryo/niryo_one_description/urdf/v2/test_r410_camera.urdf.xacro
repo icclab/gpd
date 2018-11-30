@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot name="realsense2_camera" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find realsense2_camera)/urdf/_r410.urdf.xacro"/>
+
+
+  <sensor_r410 parent="base_link">
+    <origin xyz="0.435 -0.03 0.337" rpy=" 3.14 1.57 0"/>
+
+  </sensor_r410>
+
+
+
+</robot>

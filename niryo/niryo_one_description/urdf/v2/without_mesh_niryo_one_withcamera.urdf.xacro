@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<robot name="niryo_one" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find niryo_one_description)/urdf/v2/without_mesh_niryo_one.urdf.xacro" />
+  <xacro:include filename="$(find niryo_one_description)/urdf/v2/test_r410_camera.urdf.xacro" />
+
+
+ </robot>
+
+
+
+
+
+
