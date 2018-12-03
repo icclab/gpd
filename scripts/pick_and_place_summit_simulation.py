@@ -305,6 +305,34 @@ class GpdPickPlace(object):
         g.grasp_pose = gp
 
         return g
+
+    def initial_pose(self):
+        pevent("Initial pose sequence started")
+        group_name = "manipulator"
+       # ipdb.set_trace()
+        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
+
+
+        pose_goal = geometry_msgs.msg.Pose()
+        pose_goal.orientation.x = -0.502299191014
+        pose_goal.orientation.y = 0.501995470993
+        pose_goal.orientation.z = 0.497321453008
+        pose_goal.orientation.w = 0.498364768204
+        pose_goal.position.x = 0.942916677757
+        pose_goal.position.y = 0.0450558098413
+        pose_goal.position.z = 0.664030073068
+        group.set_pose_target(pose_goal)
+
+        # The go command can be called with joint values, poses, or without any
+        # parameters if you have already set the pose or joint target for the group
+        # group.go(joint_goal, wait=True)
+
+        plan = group.go(wait=True)
+        # Calling `stop()` ensures that there is no residual movement
+        group.stop()
+
+        group.clear_pose_targets()
+
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
@@ -357,10 +385,12 @@ if __name__ == "__main__":
 #    print("")
     num_objects = 2
     for i in range (0, num_objects):
-
+        # ipdb.set_trace()
         # Subscribe for grasps
         pnp = GpdPickPlace(mark_pose=True)
 
+        print("--- Move Arm to Initial Position---")
+        pnp.initial_pose()
 
          # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
         gpd_prep = GpdGrasps(max_messages=8)
