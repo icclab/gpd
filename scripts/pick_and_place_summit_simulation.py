@@ -22,16 +22,6 @@ from tf.transformations import *
 
 import geometry_msgs.msg #for pose2 simple
 import math
-from tools import *
-from pprint import pprint
-from pyquaternion import Quaternion
-from moveit_python import *
-from moveit_msgs.msg import Grasp, PlaceLocation
-from geometry_msgs.msg import PoseStamped, Vector3, Pose
-from trajectory_msgs.msg import JointTrajectoryPoint
-from visualization_msgs.msg import Marker
-from std_msgs.msg import Header, ColorRGBA
-from moveit_python.geometry import rotate_pose_msg_by_euler_angles
 import sys
 import moveit_commander
 import moveit_msgs.msg
@@ -52,7 +42,7 @@ class GpdPickPlace(object):
     grasps = []
     mark_pose = False
     #grasp_offset = -0.15
-    grasp_offset = -0.1
+    grasp_offset = -0.01
 
 
     def __init__(self, mark_pose=False):
@@ -83,7 +73,7 @@ class GpdPickPlace(object):
             pose=grasp_pose,
             scale=Vector3(0.03, 0.02, 0.02),
             ns = "/summit_xl/",
-            header=Header(frame_id='/arm_camera_depth_optical_frame'),
+            header=Header(frame_id='arm_camera_depth_optical_frame'),
            # header=Header(frame_id='summit_xl_front_rgbd_camera_depth_frame'),
             color=ColorRGBA(1.0, 1.0, 0.0, 0.8))
         publisher.publish(marker)
@@ -100,15 +90,29 @@ class GpdPickPlace(object):
             g = Grasp()
             g.id = "dupa"
             gp = PoseStamped()
-            gp.header.frame_id = "/arm_camera_depth_optical_frame"
+            gp.header.frame_id = "arm_camera_depth_optical_frame"
            # gp.header.frame_id = "summit_xl_front_rgbd_camera_depth_frame"
 
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-           # rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
-        #    rot_q = Quaternion(0.7071, 0, 0, -0.7071)  # 90* around X axis (W, X, Y, Z)
-         #   quat = rot_q * org_q
+          #  print("origi: ")
+           # print(org_q)
+            #rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
+            q1 = Quaternion(axis=[0, 0, 1], angle=3.14159265/2)  # Rotate 90 about Z
+            q2 = Quaternion(axis=[1, 0, 0], angle=3.14159265/2) # Rotate 90 about X
+            q3 = Quaternion(axis=[0, 1, 0], angle=3.14159265/2) # Rotate 90 about Y
+            q4 = q1 * q2 * q3 # Composite rotation of q1 then q2 expressed as standard multiplication
+            quat = q4.rotate(org_q)
+            #q1 = Quaternion(axis=[1, 0, 0], angle=3.14159265)  # Rotate 180 about X
+            #q2 = Quaternion(axis=[0, 1, 0], angle=3.14159265 / 2)  # Rotate 90 about Y
+            #q3 = q1 * q2  # Composite rotation of q1 then q2 expressed as standard multiplication
+            #v_prime = q3.rotate(v)
+            #rot_q = Quaternion(axis=[0, 0, 1], angle=3.14159265 / 2) # Rotate 90 about Z
 
-            quat = org_q
+         #   quat = rot_q * org_q # Composite rotation of q1 then q2 expressed as standard multiplication
+            #print("roated:")
+            #print(quat)
+
+          #  quat = org_q
 
 
             # Move grasp back for given offset
@@ -120,6 +124,7 @@ class GpdPickPlace(object):
             gp.pose.orientation.y = float(quat.elements[2])
             gp.pose.orientation.z = float(quat.elements[3])
             gp.pose.orientation.w = float(quat.elements[0])
+            #library used is pyquaternion http://kieranwynn.github.io/pyquaternion/
 
             g.grasp_pose = gp
 
@@ -127,8 +132,8 @@ class GpdPickPlace(object):
             g.pre_grasp_approach.direction.vector.z = 1.0
            # g.pre_grasp_approach.direction.vector.y = 0.0
            # g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.095
-            g.pre_grasp_approach.desired_distance = 0.115
+            g.pre_grasp_approach.min_distance = 0.05
+            g.pre_grasp_approach.desired_distance = 0.1
 
          #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
          #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -225,7 +230,7 @@ class GpdPickPlace(object):
 
 
 
-def place(self, place_pose):
+    def place(self, place_pose):
         pevent("Place sequence started")
 
 
@@ -293,7 +298,7 @@ def place(self, place_pose):
         g = Grasp()
         g.id = "successful_predefined_grasp"
         gp = PoseStamped()
-        gp.header.frame_id = "/arm_camera_depth_optical_frame"
+        gp.header.frame_id = "arm_camera_depth_optical_frame"
 
         gp.pose.position.x = 0.183518647951
         gp.pose.position.y = -0.23707952283
