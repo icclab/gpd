@@ -96,7 +96,7 @@ class GpdPickPlace(object):
 
     def generate_grasp_msgs(self, grasps):
         formatted_grasps = []
-        for i in range(0, len(self.grasps)): #dimitris, take out self. !
+        for i in range(0, len(grasps)): #dimitris, take out self. !
             g = Grasp()
             g.id = "dupa"
             gp = PoseStamped()
@@ -104,8 +104,9 @@ class GpdPickPlace(object):
            # gp.header.frame_id = "summit_xl_front_rgbd_camera_depth_frame"
 
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-            #   rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
-            #  quat = rot_q * org_q
+           # rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
+        #    rot_q = Quaternion(0.7071, 0, 0, -0.7071)  # 90* around X axis (W, X, Y, Z)
+         #   quat = rot_q * org_q
 
             quat = org_q
 
@@ -123,19 +124,19 @@ class GpdPickPlace(object):
             g.grasp_pose = gp
 
             g.pre_grasp_approach.direction.header.frame_id = "arm_wrist_3_link"
-            g.pre_grasp_approach.direction.vector.x = 0.0
-            g.pre_grasp_approach.direction.vector.y = 0.0
             g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.05
-            g.pre_grasp_approach.desired_distance = 0.1
+           # g.pre_grasp_approach.direction.vector.y = 0.0
+           # g.pre_grasp_approach.direction.vector.z = 1.0
+            g.pre_grasp_approach.min_distance = 0.095
+            g.pre_grasp_approach.desired_distance = 0.115
 
          #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-        #    g.pre_grasp_posture.joint_names = ["arm_tool0"]
-         #   g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
-         #   pos = JointTrajectoryPoint()
-         #   pos.positions.append(0)
-          #  pos.positions.append(0.1337)
-          #  g.pre_grasp_posture.points.append(pos)
+         #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
+       #     g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
+        #    pos = JointTrajectoryPoint()
+        #    pos.positions.append(0)
+         #   pos.positions.append(0.1337)
+         #   g.pre_grasp_posture.points.append(pos)
 
           #  g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
           #  g.grasp_posture.joint_names = ["joint_6"]
@@ -195,19 +196,20 @@ class GpdPickPlace(object):
     def place2(self, place_pose):
         pevent("Place sequence started")
         group_name = "manipulator"
-
-        group = moveit_commander.MoveGroupCommander(group_name)
+        # ipdb.set_trace()
+        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
+                                                    ns="summit_xl")
 
 
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.w = 1.0
-        pose_goal.position.x = 0.24
-        pose_goal.position.y = 0.22
-        pose_goal.position.z = 0.31
-        #pose_goal.orientation.w = place_pose.grasp_pose.pose.orientation.w
-        #pose_goal.position.x = place_pose.grasp_pose.pose.orientation.x
-        #pose_goal.position.y = place_pose.grasp_pose.pose.orientation.y
-        #pose_goal.position.z = place_pose.grasp_pose.pose.orientation.z
+
+        pose_goal.position.x = 0.769223928452
+        pose_goal.position.y = 0.541979789734
+        pose_goal.position.z = 0.674414753914
+        pose_goal.orientation.w = 0.771000385284
+        pose_goal.orientation.x = -0.636834084988
+        pose_goal.orientation.y = -0.000845461036079
+        pose_goal.orientation.z = -0.000277385232039
         group.set_pose_target(pose_goal)
 
         # The go command can be called with joint values, poses, or without any
@@ -223,7 +225,7 @@ class GpdPickPlace(object):
 
 
 
-    def place(self, place_pose):
+def place(self, place_pose):
         pevent("Place sequence started")
 
 
@@ -321,6 +323,8 @@ class GpdPickPlace(object):
         pose_goal.position.x = 0.942916677757
         pose_goal.position.y = 0.0450558098413
         pose_goal.position.z = 0.664030073068
+
+
         group.set_pose_target(pose_goal)
 
         # The go command can be called with joint values, poses, or without any
