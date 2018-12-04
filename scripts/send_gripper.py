@@ -8,6 +8,7 @@ import argparse
 import rospy
 import actionlib
 import control_msgs.msg
+from std_msgs.msg import Float64
 
 
 def gripper_client(value):
@@ -38,6 +39,16 @@ def gripper_client(value):
     client_r.wait_for_result()
     return client_l.get_result()
 
+
+
+def gripper_client_2(value):
+
+    p1 = rospy.Publisher('/summit_xl/gripper_left_controller/command', Float64, queue_size=1)
+    rospy.sleep(0.5)
+    p1.publish(value)
+    p2 = rospy.Publisher('/summit_xl/gripper_right_controller/command', Float64, queue_size=1)
+    rospy.sleep(0.5)
+    p2.publish(value)
 
 if __name__ == '__main__':
     try:

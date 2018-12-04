@@ -35,14 +35,14 @@ from niryo_one_python_api.niryo_one_api import *
 import time
 
 from send_gripper import gripper_client
-
+from send_gripper import gripper_client_2
 
 
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
     #grasp_offset = -0.15
-    grasp_offset = -0.01
+    grasp_offset = -0.05
 
 
     def __init__(self, mark_pose=False):
@@ -92,25 +92,27 @@ class GpdPickPlace(object):
             gp = PoseStamped()
             gp.header.frame_id = "arm_camera_depth_optical_frame"
            # gp.header.frame_id = "summit_xl_front_rgbd_camera_depth_frame"
-
+            #ipdb.set_trace()
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-          #  print("origi: ")
-           # print(org_q)
-            #rot_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around X axis (W, X, Y, Z)
-            q1 = Quaternion(axis=[0, 0, 1], angle=3.14159265/2)  # Rotate 90 about Z
-            q2 = Quaternion(axis=[1, 0, 0], angle=3.14159265/2) # Rotate 90 about X
-            q3 = Quaternion(axis=[0, 1, 0], angle=3.14159265/2) # Rotate 90 about Y
-            q4 = q1 * q2 * q3 # Composite rotation of q1 then q2 expressed as standard multiplication
-            quat = q4.rotate(org_q)
+            print("origi: ")
+            print(org_q)
+            rot_x_q = Quaternion(-0.7071, 0.7071, 0, 0)  # 270* around X axis (W, X, Y, Z)
+         #   rot_x_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around Z axis (W, X, Y, Z)
+          #  q1 = Quaternion(axis=[0, 0, 1], angle=3.14159265/2)  # Rotate 90 about Z
+          #  q2 = Quaternion(axis=[1, 0, 0], angle=3.14159265/2) # Rotate 90 about X
+          #  q3 = Quaternion(axis=[0, 1, 0], angle=3.14159265/2) # Rotate 90 about Y
+          #  q4 = q1 * q2 # Composite rotation of q1 then q2 expressed as standard multiplication
+          #  quat1 = q1.rotate(org_q)
+          #  quat = q2.rotate(quat1)
             #q1 = Quaternion(axis=[1, 0, 0], angle=3.14159265)  # Rotate 180 about X
             #q2 = Quaternion(axis=[0, 1, 0], angle=3.14159265 / 2)  # Rotate 90 about Y
             #q3 = q1 * q2  # Composite rotation of q1 then q2 expressed as standard multiplication
             #v_prime = q3.rotate(v)
             #rot_q = Quaternion(axis=[0, 0, 1], angle=3.14159265 / 2) # Rotate 90 about Z
 
-         #   quat = rot_q * org_q # Composite rotation of q1 then q2 expressed as standard multiplication
-            #print("roated:")
-            #print(quat)
+            quat = rot_x_q * org_q # Composite rotation of q1 then q2 expressed as standard multiplication
+            print("roated:")
+            print(quat)
 
           #  quat = org_q
 
@@ -130,10 +132,10 @@ class GpdPickPlace(object):
 
             g.pre_grasp_approach.direction.header.frame_id = "arm_wrist_3_link"
             g.pre_grasp_approach.direction.vector.z = 1.0
-           # g.pre_grasp_approach.direction.vector.y = 0.0
-           # g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.05
-            g.pre_grasp_approach.desired_distance = 0.1
+#            g.pre_grasp_approach.direction.vector.y = 0.0
+ #           g.pre_grasp_approach.direction.vector.z = 1.0
+            g.pre_grasp_approach.min_distance = 0.06
+            g.pre_grasp_approach.desired_distance = 0.15
 
          #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
          #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -351,6 +353,8 @@ if __name__ == "__main__":
 
 
     print("--- Start Physical Arm ---")
+ #   ipdb.set_trace()
+
 
 
    # n = NiryoOne()
@@ -363,7 +367,8 @@ if __name__ == "__main__":
 #    print e
 
     print("Make sure calibration is already performed on arm !")
-    time.sleep(1)
+
+
     # Test learning mode
     #   n.activate_learning_mode(False)
 
@@ -396,6 +401,10 @@ if __name__ == "__main__":
     for i in range (0, num_objects):
         # ipdb.set_trace()
         # Subscribe for grasps
+
+
+
+
         pnp = GpdPickPlace(mark_pose=True)
 
         print("--- Move Arm to Initial Position---")
@@ -412,20 +421,23 @@ if __name__ == "__main__":
         formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
         #n.open_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 opened")
-        result = gripper_client(0.2)
+       # result = gripper_client(0.2)
+        result = gripper_client_2(5)
         print("Gripper opened")
 
         successful_grasp = pnp.pick(formatted_grasps, verbose=True)
         #n.close_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 closed")
-        result = gripper_client(0)
+       # result = gripper_client(0)
+        result = gripper_client_2(-5)
         print("Gripper closed")
 
         # Place object with successful grasp pose as the starting point
         pnp.place2(successful_grasp)
       #  n.open_gripper(TOOL_GRIPPER_3_ID, 200)
     #    print("Gripper 3 opened")
-        result = gripper_client(0.2)
+     #   result = gripper_client(0.2)
+        result = gripper_client_2(5)
         print("Gripper opened")
       #  n.close_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 closed")
