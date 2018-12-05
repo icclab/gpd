@@ -37,12 +37,14 @@ import time
 from send_gripper import gripper_client
 from send_gripper import gripper_client_2
 
+from tf import TransformListener
+import copy
 
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
     #grasp_offset = -0.15
-    grasp_offset = -0.05
+    grasp_offset = -0.16
 
 
     def __init__(self, mark_pose=False):
@@ -84,37 +86,42 @@ class GpdPickPlace(object):
             rospy.sleep(0.01)
         return self.grasps
 
+    def tf_listen(self):
+        if self.tf.frameExists("arm_camera_depth_optical_frame") and self.tf.frameExists("gripper_base_link"):
+            t = self.tf.getLatestCommonTime("arm_camera_depth_optical_frame", "gripper_base_link")
+            position, quaternion = self.tf.lookupTransform("arm_camera_depth_optical_frame", "gripper_base_link", t)
+            print position, quaternion
+            #p1 = geometry_msgs.msg.PoseStamped()
+            #p1.header.frame_id = "gripper_base_link"
+            #p1.pose.orientation.w = 1.0  # Neutral orientation
+            #p_in_base = self.tf_listener_.transformPose("arm_camera_depth_optical_frame", p1)
+            #print "Position "
+            #print p_in_base
+            return quaternion
+
+
     def generate_grasp_msgs(self, grasps):
         formatted_grasps = []
         for i in range(0, len(grasps)): #dimitris, take out self. !
             g = Grasp()
             g.id = "dupa"
             gp = PoseStamped()
-            gp.header.frame_id = "arm_camera_depth_optical_frame"
-           # gp.header.frame_id = "summit_xl_front_rgbd_camera_depth_frame"
-            #ipdb.set_trace()
+            gp.header.frame_id = "gripper_base_link"
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-            print("origi: ")
-            print(org_q)
-            rot_x_q = Quaternion(-0.7071, 0.7071, 0, 0)  # 270* around X axis (W, X, Y, Z)
-         #   rot_x_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around Z axis (W, X, Y, Z)
-          #  q1 = Quaternion(axis=[0, 0, 1], angle=3.14159265/2)  # Rotate 90 about Z
-          #  q2 = Quaternion(axis=[1, 0, 0], angle=3.14159265/2) # Rotate 90 about X
-          #  q3 = Quaternion(axis=[0, 1, 0], angle=3.14159265/2) # Rotate 90 about Y
-          #  q4 = q1 * q2 # Composite rotation of q1 then q2 expressed as standard multiplication
-          #  quat1 = q1.rotate(org_q)
-          #  quat = q2.rotate(quat1)
-            #q1 = Quaternion(axis=[1, 0, 0], angle=3.14159265)  # Rotate 180 about X
-            #q2 = Quaternion(axis=[0, 1, 0], angle=3.14159265 / 2)  # Rotate 90 about Y
-            #q3 = q1 * q2  # Composite rotation of q1 then q2 expressed as standard multiplication
-            #v_prime = q3.rotate(v)
-            #rot_q = Quaternion(axis=[0, 0, 1], angle=3.14159265 / 2) # Rotate 90 about Z
+            rot_z_q = Quaternion(-0.7071, 0, 0, 0.7071) #270* around Z axis (W, X, Y, Z)
 
-            quat = rot_x_q * org_q # Composite rotation of q1 then q2 expressed as standard multiplication
-            print("roated:")
-            print(quat)
+            #code for dynamic tf listening and transformation
+           # self.tf_listener_ = TransformListener()
+           # dyn_rot = self.tf_listen()
+            #dyn_rot_pyquaternion = copy.deepcopy(dyn_rot)
+            #dyn_rot_pyquaternion[0] = copy.deepcopy(dyn_rot[3])
+            #dyn_rot_pyquaternion[1] = copy.deepcopy(dyn_rot[0])
+            #dyn_rot_pyquaternion[2] = copy.deepcopy(dyn_rot[1])
+            #dyn_rot_pyquaternion[3] = copy.deepcopy(dyn_rot[2])
+          #  quat1 = org_q * dyn_rot_pyquaternion  # Composite rotation of q1 then q2 expressed as standard multiplication
+            #quat =  quat1 * rot_z_q
 
-          #  quat = org_q
+            quat = org_q * rot_z_q
 
 
             # Move grasp back for given offset
@@ -130,12 +137,12 @@ class GpdPickPlace(object):
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "arm_wrist_3_link"
+            g.pre_grasp_approach.direction.header.frame_id = "gripper_base_link"
             g.pre_grasp_approach.direction.vector.z = 1.0
 #            g.pre_grasp_approach.direction.vector.y = 0.0
  #           g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.06
-            g.pre_grasp_approach.desired_distance = 0.15
+            g.pre_grasp_approach.min_distance = 0.1
+            g.pre_grasp_approach.desired_distance = 0.18
 
          #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
          #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -321,15 +328,16 @@ class GpdPickPlace(object):
        # ipdb.set_trace()
         group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
 
-
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.x = -0.502299191014
-        pose_goal.orientation.y = 0.501995470993
-        pose_goal.orientation.z = 0.497321453008
-        pose_goal.orientation.w = 0.498364768204
+        pose_goal.orientation.x = 1
+        pose_goal.orientation.y = 0
+        pose_goal.orientation.z = 0
+        pose_goal.orientation.w = 0
         pose_goal.position.x = 0.942916677757
         pose_goal.position.y = 0.0450558098413
         pose_goal.position.z = 0.664030073068
+
+
 
 
         group.set_pose_target(pose_goal)
@@ -397,7 +405,7 @@ if __name__ == "__main__":
 #    print("============ Printing robot state")
 #    print(robot.get_current_state())
 #    print("")
-    num_objects = 2
+    num_objects = 1
     for i in range (0, num_objects):
         # ipdb.set_trace()
         # Subscribe for grasps
