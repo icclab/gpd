@@ -42,8 +42,7 @@ from send_gripper import gripper_client_2
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.15
-
+    grasp_offset = -0.12
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList,
@@ -75,33 +74,6 @@ class GpdPickPlace(object):
             header=Header(frame_id='summit_xl_base_footprint'),
             color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
         publisher.publish(marker_x)
-#        orig = Quaternion(grasp_pose.orientation.w, grasp_pose.orientation.x, grasp_pose.orientation.y, grasp_pose.orientation.z) # w,x,y,z
-#        rot_x_y = Quaternion(axis=[0, 0, 1], angle=3.14159265/2)  # Rotate 90 about Z
-#        pose_y = copy.copy(grasp_pose)
-#        y = rot_x_y.rotate(orig)
-#        pose_y.orientation.x = float(y.elements[1])
-#        pose_y.orientation.y = float(y.elements[2])
-#        pose_y.orientation.z = float(y.elements[3])
-#        pose_y.orientation.w = float(y.elements[0])
-#        marker_y = Marker(
-#            type=Marker.ARROW,
-#            id=0,
-#            lifetime=rospy.Duration(60),
-#            pose=pose_y,
-#            scale=Vector3(0.04, 0.02, 0.02),
-#            header=Header(frame_id='summit_xl_base_footprint'),
-#            color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
-#        publisher.publish(marker_y)
-#        pose_z = 
-#        marker_z = Marker(
-#            type=Marker.ARROW,
-#            id=0,
-#            lifetime=rospy.Duration(60),
-#            pose=pose_z,
-#            scale=Vector3(0.04, 0.02, 0.02),
-#            header=Header(frame_id='summit_xl_base_footprint'),
-#            color=ColorRGBA(0.0, 0.0, 1.0, 0.8))
-#        publisher.publish(marker_z)
 
     def get_gpd_grasps(self):
         pevent("Waiting for grasps to arrive")
@@ -111,7 +83,7 @@ class GpdPickPlace(object):
 
     def generate_grasp_msgs(self, grasps):
         print("grasps")
-        print(str(grasps))
+#        print(str(grasps))
         formatted_grasps = []
         for i in range(0, len(grasps)): #dimitris, take out self. !
             g = Grasp()
@@ -121,45 +93,17 @@ class GpdPickPlace(object):
            # gp.header.frame_id = "summit_xl_front_rgbd_camera_depth_frame"
             #ipdb.set_trace()
             org_q = self.trans_matrix_to_quaternion(grasps[i])
-            print("origi: ")
-            print(org_q)
             listener = TransformListener(True, rospy.Duration(10.0))
-#           pos, rot_quat = listener.lookupTransform("arm_tool0", "arm_camera_depth_optical_frame", rospy.Time())
-#            print("rotation: " + str(rot_quat))
-            #rot_x_q = Quaternion(-0.7071, 0.7071, 0, 0)  # 270* around X axis (W, X, Y, Z)
-         #   rot_x_q = Quaternion(0.7071, 0.7071, 0, 0)  # 90* around Z axis (W, X, Y, Z)
-            
-            # transform grasp
-            # align Z axis of arm_tool0 with X axis of grasp
-            # that is one rotation of 90 degrees on Y axis and 90 degrees on Z
-            q1 = Quaternion(axis=[0, 1, 0], angle=3.14159265/2)  # Rotate -90 about Y
-            q2 = Quaternion(axis=[0, 0, 1], angle=3.14159265/2) # Rotate 90 about Z
-            rot_x_to_z = q1 * q2 # Composite rotation of q1 then q2 expressed as standard multiplication
-            
-          #  quat1 = q1.rotate(org_q)
-          #  quat = q2.rotate(quat1)
-            #q1 = Quaternion(axis=[1, 0, 0], angle=3.14159265)  # Rotate 180 about X
-            #q2 = Quaternion(axis=[0, 1, 0], angle=3.14159265 / 2)  # Rotate 90 about Y
-            #q3 = q1 * q2  # Composite rotation of q1 then q2 expressed as standard multiplication
-            #v_prime = q3.rotate(v)
-            quat = org_q
-            #quat =  org_q * rot_x_to_z # we don't rotate the grasp. Will have to adapt later to the fact that we want Z axis of arm_tool0 to align to x axis of grasp
-            #quat = rot_x_q * org_q # Composite rotation of q1 then q2 expressed as standard multiplication
-            print("rotated:")
-            print(quat)
-
-          #  quat = org_q
-
 
             # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
             gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
             gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
         
-            gp.pose.orientation.x = float(quat.elements[1])
-            gp.pose.orientation.y = float(quat.elements[2])
-            gp.pose.orientation.z = float(quat.elements[3])
-            gp.pose.orientation.w = float(quat.elements[0])
+            gp.pose.orientation.x = float(org_q.elements[1])
+            gp.pose.orientation.y = float(org_q.elements[2])
+            gp.pose.orientation.z = float(org_q.elements[3])
+            gp.pose.orientation.w = float(org_q.elements[0])
             #library used is pyquaternion http://kieranwynn.github.io/pyquaternion/
 
             #g.grasp_pose = gp
@@ -378,7 +322,14 @@ class GpdPickPlace(object):
         group_name = "manipulator"
        # ipdb.set_trace()
         group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
+        
+        # We can get the name of the reference frame for this robot:
+        planning_frame = group.get_planning_frame()
+        print "============ Reference frame: %s" % planning_frame
 
+        # We can also print the name of the end-effector link for this group:
+        eef_link = group.get_end_effector_link()
+        print "============ End effector: %s" % eef_link
 
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.orientation.x = -0.502299191014
@@ -389,9 +340,20 @@ class GpdPickPlace(object):
 #        pose_goal.orientation.y = 0
 #        pose_goal.orientation.z = 0
 #        pose_goal.orientation.w = 0
-        pose_goal.position.x = 0.942916677757
-        pose_goal.position.y = 0.0450558098413
-        pose_goal.position.z = 0.664030073068
+        pose_goal.position.x = 0.82916677757
+        pose_goal.position.y = 0.050558098413
+        pose_goal.position.z = 0.994030073068
+
+#        # pose looking down in front of robot
+#        # coordinate transform: summit_xl_base_footprint -> arm_ee_link
+#        pose_goal = geometry_msgs.msg.Pose()
+#        pose_goal.position.x = 0.443 
+#        pose_goal.position.y = 0.065
+#        pose_goal.position.z = 0.762
+#        pose_goal.orientation.x = 0.896 
+#        pose_goal.orientation.y = -0.015
+#        pose_goal.orientation.z = -0.443
+#        pose_goal.orientation.w = -0.019
 
 
         group.set_pose_target(pose_goal)
@@ -400,26 +362,7 @@ class GpdPickPlace(object):
         ps = geometry_msgs.msg.PoseStamped()
         ps.pose = pose_goal
         ps.header.frame_id = "summit_xl_base_footprint"
-#        listener = TransformListener(True, rospy.Duration(10.0))
-#        listener.waitForTransform('/summit_xl_base_footprint','/arm_camera_depth_optical_frame', rospy.Time(), rospy.Duration(1.0))
-#        print(listener.getFrameStrings())
-#        print("Initial pose wrt summit_xl_base_footprint: " + str(listener.transformPose("summit_xl_base_footprint", ps)))
-#        print("Initial pose wrt arm_camera_depth_optical_frame before movement: " + str(listener.transformPose("arm_camera_depth_optical_frame", ps)))
-#        pos, quat = listener.lookupTransform("summit_xl_base_footprint", "arm_camera_depth_optical_frame", rospy.Time())
-#        print(pos)
-#        print(quat)
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
-        # group.go(joint_goal, wait=True)
-
         plan = group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        group.stop()
-#        listener.waitForTransform('/summit_xl_base_footprint','/arm_camera_depth_optical_frame', rospy.Time(), rospy.Duration(1.0))
-#        pos, quat = listener.lookupTransform("summit_xl_base_footprint", "arm_camera_depth_optical_frame", rospy.Time())
-#        print(pos)
-#        print(quat)
-#        print("Initial pose wrt arm_camera_depth_optical_frame after movement: " + str(listener.transformPose("arm_camera_depth_optical_frame", ps)))
 
         group.clear_pose_targets()
 

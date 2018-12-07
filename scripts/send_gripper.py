@@ -44,10 +44,9 @@ def gripper_client(value):
 def gripper_client_2(value):
 
     p1 = rospy.Publisher('/summit_xl/gripper_left_controller/command', Float64, queue_size=1)
-    rospy.sleep(0.5)
-    p1.publish(value)
     p2 = rospy.Publisher('/summit_xl/gripper_right_controller/command', Float64, queue_size=1)
     rospy.sleep(0.5)
+    p1.publish(value)
     p2.publish(value)
 
 if __name__ == '__main__':
