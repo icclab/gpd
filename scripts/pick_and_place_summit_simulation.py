@@ -31,7 +31,7 @@ from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 
 from tf.msg import tfMessage
-from niryo_one_python_api.niryo_one_api import *
+#from niryo_one_python_api.niryo_one_api import *
 import time
 
 from send_gripper import gripper_client
@@ -44,16 +44,16 @@ class GpdPickPlace(object):
     grasps = []
     mark_pose = False
     #grasp_offset = -0.15
-    grasp_offset = -0.16
+    grasp_offset = -0.1
 
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList,
+        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList,
                                                  self.grasp_callback)
 
         if mark_pose:
             self.mark_pose = True
-            self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=5)
+            self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=10)
 
        # ipdb.set_trace()
         self.p = PickPlaceInterface(group="manipulator", ee_group="endeffector", verbose=True, ns="/summit_xl/")
@@ -65,20 +65,16 @@ class GpdPickPlace(object):
         pevent("Received new grasps")
 
     def show_grasp_pose(self, publisher, grasp_pose):
-        # pinfo("Marker orientation:")
-        # pprint(grasp_pose.orientation)
         #ipdb.set_trace()
-        marker = Marker(
+        marker_x = Marker(
             type=Marker.ARROW,
             id=0,
-            lifetime=rospy.Duration(30),
+            lifetime=rospy.Duration(60),
             pose=grasp_pose,
-            scale=Vector3(0.03, 0.02, 0.02),
-            ns = "/summit_xl/",
+            scale=Vector3(0.04, 0.02, 0.02),
             header=Header(frame_id='arm_camera_depth_optical_frame'),
-           # header=Header(frame_id='summit_xl_front_rgbd_camera_depth_frame'),
-            color=ColorRGBA(1.0, 1.0, 0.0, 0.8))
-        publisher.publish(marker)
+            color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
+        publisher.publish(marker_x)
 
     def get_gpd_grasps(self):
         pevent("Waiting for grasps to arrive")
@@ -106,7 +102,7 @@ class GpdPickPlace(object):
             g = Grasp()
             g.id = "dupa"
             gp = PoseStamped()
-            gp.header.frame_id = "gripper_base_link"
+            gp.header.frame_id = "arm_camera_depth_optical_frame"
             org_q = self.trans_matrix_to_quaternion(grasps[i])
             rot_z_q = Quaternion(-0.7071, 0, 0, 0.7071) #270* around Z axis (W, X, Y, Z)
 
@@ -118,17 +114,17 @@ class GpdPickPlace(object):
             #dyn_rot_pyquaternion[1] = copy.deepcopy(dyn_rot[0])
             #dyn_rot_pyquaternion[2] = copy.deepcopy(dyn_rot[1])
             #dyn_rot_pyquaternion[3] = copy.deepcopy(dyn_rot[2])
-          #  quat1 = org_q * dyn_rot_pyquaternion  # Composite rotation of q1 then q2 expressed as standard multiplication
+          #  quat1 = org_q * dyn_rot_pyquaternion
             #quat =  quat1 * rot_z_q
 
-            quat = org_q * rot_z_q
+            quat = org_q #* rot_z_q
 
+            # Move grasp back for given offset (and rotation of 270 degrees around z)
 
-            # Move grasp back for given offset
             gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
             gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
             gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
-        
+
             gp.pose.orientation.x = float(quat.elements[1])
             gp.pose.orientation.y = float(quat.elements[2])
             gp.pose.orientation.z = float(quat.elements[3])
@@ -137,12 +133,10 @@ class GpdPickPlace(object):
 
             g.grasp_pose = gp
 
-            g.pre_grasp_approach.direction.header.frame_id = "gripper_base_link"
+            g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
             g.pre_grasp_approach.direction.vector.z = 1.0
-#            g.pre_grasp_approach.direction.vector.y = 0.0
- #           g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.1
-            g.pre_grasp_approach.desired_distance = 0.18
+            g.pre_grasp_approach.min_distance = 0.06
+            g.pre_grasp_approach.desired_distance = 0.1
 
          #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
          #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -185,7 +179,7 @@ class GpdPickPlace(object):
 
         for single_grasp in grasps_list:
             if self.mark_pose:
-                #ipdb.set_trace()
+               # ipdb.set_trace()
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
                 rospy.sleep(1)
 
@@ -203,7 +197,7 @@ class GpdPickPlace(object):
                 return single_grasp
             else:
                 failed_grasps += 1
-                if failed_grasps == 5:
+                if failed_grasps == 10:
                     pevent("All grasps failed. Aborting")
                     exit(1)
 
@@ -217,13 +211,14 @@ class GpdPickPlace(object):
 
         pose_goal = geometry_msgs.msg.Pose()
 
-        pose_goal.position.x = 0.769223928452
-        pose_goal.position.y = 0.541979789734
-        pose_goal.position.z = 0.674414753914
-        pose_goal.orientation.w = 0.771000385284
-        pose_goal.orientation.x = -0.636834084988
-        pose_goal.orientation.y = -0.000845461036079
-        pose_goal.orientation.z = -0.000277385232039
+
+        pose_goal.position.x = 0.516344249249
+        pose_goal.position.y = -0.636391639709
+        pose_goal.position.z =   0.603573918343
+        pose_goal.orientation.w = 0.185884654522
+        pose_goal.orientation.x = -0.681892871857
+        pose_goal.orientation.y = 0.682668983936
+        pose_goal.orientation.z = 0.185558646917
         group.set_pose_target(pose_goal)
 
         # The go command can be called with joint values, poses, or without any
@@ -329,15 +324,13 @@ class GpdPickPlace(object):
         group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
 
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.x = 1
-        pose_goal.orientation.y = 0
-        pose_goal.orientation.z = 0
-        pose_goal.orientation.w = 0
-        pose_goal.position.x = 0.942916677757
-        pose_goal.position.y = 0.0450558098413
-        pose_goal.position.z = 0.664030073068
-
-
+        pose_goal.position.x = 1.07464909554
+        pose_goal.position.y = 0.00558180361986
+        pose_goal.position.z = 0.801929414272
+        pose_goal.orientation.w = 0.504062771797
+        pose_goal.orientation.x = -0.505350887775
+        pose_goal.orientation.y = 0.478404045105
+        pose_goal.orientation.z = 0.511537611485
 
 
         group.set_pose_target(pose_goal)
@@ -407,7 +400,7 @@ if __name__ == "__main__":
 #    print("")
     num_objects = 1
     for i in range (0, num_objects):
-        # ipdb.set_trace()
+        #ipdb.set_trace()
         # Subscribe for grasps
 
 
@@ -430,14 +423,14 @@ if __name__ == "__main__":
         #n.open_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 opened")
        # result = gripper_client(0.2)
-        result = gripper_client_2(5)
+        result = gripper_client_2(8)
         print("Gripper opened")
 
         successful_grasp = pnp.pick(formatted_grasps, verbose=True)
         #n.close_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 closed")
        # result = gripper_client(0)
-        result = gripper_client_2(-5)
+        result = gripper_client_2(-8)
         print("Gripper closed")
 
         # Place object with successful grasp pose as the starting point
@@ -445,7 +438,7 @@ if __name__ == "__main__":
       #  n.open_gripper(TOOL_GRIPPER_3_ID, 200)
     #    print("Gripper 3 opened")
      #   result = gripper_client(0.2)
-        result = gripper_client_2(5)
+        result = gripper_client_2(8)
         print("Gripper opened")
       #  n.close_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 closed")
