@@ -39,6 +39,22 @@ from send_gripper import gripper_client_2
 
 from tf import TransformListener
 import copy
+from control_msgs.msg import *
+from trajectory_msgs.msg import *
+from sensor_msgs.msg import JointState
+import actionlib
+
+
+JOINT_NAMES = ['arm_shoulder_pan_joint', 'arm_shoulder_lift_joint', 'arm_elbow_joint',
+               'arm_wrist_1_joint', 'arm_wrist_2_joint', 'arm_wrist_3_joint']
+Q1 = [-0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
+Q2 = [-0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
+Q3 = [-0.472325325012, 0.06132878988980,-0.85,-1.141,-1.141,0]
+Q4 = [0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
+Q5 = [0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
+Q6 = [0.472325325012, 0.06132878988980,-0.85,-1.14,-1.14,0]
+
+client = None
 
 class GpdPickPlace(object):
     grasps = []
@@ -207,7 +223,7 @@ class GpdPickPlace(object):
         # ipdb.set_trace()
         group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
                                                     ns="summit_xl")
-
+        # group.set_planner_id("PRMkConfigDefault")
 
         pose_goal = geometry_msgs.msg.Pose()
 
@@ -317,6 +333,34 @@ class GpdPickPlace(object):
 
         return g
 
+    def initial_octomap_building(self):
+       global client
+       try:
+      #  rospy.init_node("test_move", anonymous=True, disable_signals=True)
+        client = actionlib.SimpleActionClient('/summit_xl/arm_pos_based_pos_traj_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+        print "Waiting for server..."
+        client.wait_for_server()
+        print "Connected to server"
+
+        g = FollowJointTrajectoryGoal()
+        g.trajectory = JointTrajectory()
+        g.trajectory.joint_names = JOINT_NAMES
+        g.trajectory.points = [
+                    JointTrajectoryPoint(positions=Q1, velocities=[0] * 6, time_from_start=rospy.Duration(2.0)),
+                    JointTrajectoryPoint(positions=Q2, velocities=[0] * 6, time_from_start=rospy.Duration(8.0)),
+                    JointTrajectoryPoint(positions=Q3, velocities=[0] * 6, time_from_start=rospy.Duration(14.0)),
+                    JointTrajectoryPoint(positions=Q4, velocities=[0] * 6, time_from_start=rospy.Duration(18.0)),
+                    JointTrajectoryPoint(positions=Q5, velocities=[0] * 6, time_from_start=rospy.Duration(20.0)),
+                    JointTrajectoryPoint(positions=Q6, velocities=[0] * 6, time_from_start=rospy.Duration(24.0))
+        ]
+
+        client.send_goal(g)
+        #ipdb.set_trace()
+        client.wait_for_result()
+       except KeyboardInterrupt:
+        rospy.signal_shutdown("KeyboardInterrupt")
+        raise
+
     def initial_pose(self):
         pevent("Initial pose sequence started")
         group_name = "manipulator"
@@ -349,11 +393,24 @@ if __name__ == "__main__":
     start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
 
+    pnp = GpdPickPlace(mark_pose=True)
+    print "To build the initial octomap we make the robot move between the following poses:"
+    print str([Q1[i] * 180. / pi for i in xrange(0, 6)])
+    print str([Q2[i] * 180. / pi for i in xrange(0, 6)])
+    print str([Q3[i] * 180. / pi for i in xrange(0, 6)])
+    print str([Q4[i] * 180. / pi for i in xrange(0, 6)])
+    print str([Q5[i] * 180. / pi for i in xrange(0, 6)])
+    print str([Q6[i] * 180. / pi for i in xrange(0, 6)])
+    print "Please make sure that your robot can move freely between these poses before proceeding!"
+    inp = raw_input("Continue? y/n: ")[0]
+    if (inp == 'y'):
+        pnp.initial_octomap_building()
+        print("Initial rotation for octomap building  performed")
+    else:
+        print("Initial rotation for octomap building NOT performed")
     # Start the ROS node
       # Set the value to the gripper
-
-
-    print("--- Start Physical Arm ---")
+  #  print("--- Start Physical Arm ---")
  #   ipdb.set_trace()
 
 
@@ -367,7 +424,7 @@ if __name__ == "__main__":
 #except NiryoOneException as e:
 #    print e
 
-    print("Make sure calibration is already performed on arm !")
+ #   print("Make sure calibration is already performed on arm !")
 
 
     # Test learning mode
@@ -402,12 +459,6 @@ if __name__ == "__main__":
     for i in range (0, num_objects):
         #ipdb.set_trace()
         # Subscribe for grasps
-
-
-
-
-        pnp = GpdPickPlace(mark_pose=True)
-
         print("--- Move Arm to Initial Position---")
         pnp.initial_pose()
 
@@ -432,14 +483,16 @@ if __name__ == "__main__":
        # result = gripper_client(0)
         result = gripper_client_2(-8)
         print("Gripper closed")
+        #ipdb.set_trace()
+        if successful_grasp is not None:
 
         # Place object with successful grasp pose as the starting point
-        pnp.place2(successful_grasp)
+            pnp.place2(successful_grasp)
       #  n.open_gripper(TOOL_GRIPPER_3_ID, 200)
     #    print("Gripper 3 opened")
      #   result = gripper_client(0.2)
-        result = gripper_client_2(8)
-        print("Gripper opened")
+            result = gripper_client_2(8)
+            print("Gripper opened")
       #  n.close_gripper(TOOL_GRIPPER_3_ID, 200)
        # print("Gripper 3 closed")
    # pnp.place(successful_grasp)
