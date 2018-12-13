@@ -17,7 +17,7 @@ from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
 from gpd_controller_summit import GpdGrasps
 from robot_controller import RobotPreparation
-from moveit_python.geometry import rotate_pose_msg_by_euler_angles
+from moveit_python.geometry import rotate_pose_msg_by_euler_angles, translate_pose_msg
 from tf.transformations import *
 
 import geometry_msgs.msg #for pose2 simple
@@ -44,15 +44,36 @@ from trajectory_msgs.msg import *
 from sensor_msgs.msg import JointState
 import actionlib
 
+#import roslib
+#roslib.load_manifest('joint_states_listener')
+#from joint_states_listener.srv import ReturnJointStates
+
+
+#def call_return_joint_states(joint_names):
+ #   rospy.wait_for_service("return_joint_states")
+ #   try:
+  #      s = rospy.ServiceProxy("return_joint_states", ReturnJointStates)
+   #     resp = s(joint_names)
+   # except rospy.ServiceException, e:
+   #     print "error when calling return_joint_states: %s"%e
+   #     sys.exit(1)
+   # for (ind, joint_name) in enumerate(joint_names):
+   #     if(not resp.found[ind]):
+   #         print "joint %s not found!"%joint_name
+   # return (resp.position, resp.velocity, resp.effort)
+
+    # pretty-print list to string
+#def pplist(list):
+ #   return ' '.join(['%2.3f' % x for x in list])
 
 JOINT_NAMES = ['arm_shoulder_pan_joint', 'arm_shoulder_lift_joint', 'arm_elbow_joint',
                'arm_wrist_1_joint', 'arm_wrist_2_joint', 'arm_wrist_3_joint']
-Q1 = [-0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
-Q2 = [-0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
-Q3 = [-0.472325325012, 0.06132878988980,-0.85,-1.141,-1.141,0]
-Q4 = [0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
-Q5 = [0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
-Q6 = [0.472325325012, 0.06132878988980,-0.85,-1.14,-1.14,0]
+#Q1 = [-0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
+#Q2 = [-0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
+#Q3 = [-0.472325325012, 0.06132878988980,-0.85,-1.141,-1.141,0]
+#Q4 = [0.472325325012, 0.06132878988980,-0.85,0.7074,-0.707,0]
+#Q5 = [0.472325325012, 0.06132878988980,-0.85,-0.707, 0.707,0]
+#Q6 = [0.472325325012, 0.06132878988980,-0.85,-1.14,-1.14,0]
 
 client = None
 
@@ -219,10 +240,10 @@ class GpdPickPlace(object):
 
     def place2(self, place_pose):
         pevent("Place sequence started")
-        group_name = "manipulator"
+        #group_name = "manipulator"
         # ipdb.set_trace()
-        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
-                                                    ns="summit_xl")
+        #group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
+         #                                           ns="summit_xl")
         # group.set_planner_id("PRMkConfigDefault")
 
         pose_goal = geometry_msgs.msg.Pose()
@@ -333,39 +354,64 @@ class GpdPickPlace(object):
 
         return g
 
+
+
     def initial_octomap_building(self):
-       global client
-       try:
-      #  rospy.init_node("test_move", anonymous=True, disable_signals=True)
-        client = actionlib.SimpleActionClient('/summit_xl/arm_pos_based_pos_traj_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-        print "Waiting for server..."
-        client.wait_for_server()
-        print "Connected to server"
+        global client
 
-        g = FollowJointTrajectoryGoal()
-        g.trajectory = JointTrajectory()
-        g.trajectory.joint_names = JOINT_NAMES
-        g.trajectory.points = [
-                    JointTrajectoryPoint(positions=Q1, velocities=[0] * 6, time_from_start=rospy.Duration(2.0)),
-                    JointTrajectoryPoint(positions=Q2, velocities=[0] * 6, time_from_start=rospy.Duration(8.0)),
-                    JointTrajectoryPoint(positions=Q3, velocities=[0] * 6, time_from_start=rospy.Duration(14.0)),
-                    JointTrajectoryPoint(positions=Q4, velocities=[0] * 6, time_from_start=rospy.Duration(18.0)),
-                    JointTrajectoryPoint(positions=Q5, velocities=[0] * 6, time_from_start=rospy.Duration(20.0)),
-                    JointTrajectoryPoint(positions=Q6, velocities=[0] * 6, time_from_start=rospy.Duration(24.0))
-        ]
+        # pose_current = [group.get_current_pose().pose.position.x, group.get_current_pose().pose.position.y, group.get_current_pose().pose.position.z, group.get_current_pose().pose.orientation.x, group.get_current_pose().pose.orientation.y, group.get_current_pose().pose.orientation.z]
 
-        client.send_goal(g)
-        #ipdb.set_trace()
-        client.wait_for_result()
-       except KeyboardInterrupt:
-        rospy.signal_shutdown("KeyboardInterrupt")
-        raise
+        group_current_pose = group.get_current_pose().pose
+        print("Initial position:")
+        print(group_current_pose)
+        oct_poses = list()
+        Q = []
+        oct_poses.append(copy.deepcopy(group_current_pose))
+
+    # Rotate place pose to generate more possible configurations for the planner
+        octomap_rotation_angles = 16  # Number of possible place poses
+        octomap_translations_x = 0.05
+        octomap_translations_y = 0.05
+        octomap_translations_z = 0.05
+        try:
+         client = actionlib.SimpleActionClient('/summit_xl/arm_pos_based_pos_traj_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+         print "Waiting for server..."
+         client.wait_for_server()
+         print "Connected to server"
+
+         g = FollowJointTrajectoryGoal()
+         g.trajectory = JointTrajectory()
+         g.trajectory.joint_names = JOINT_NAMES
+       #  ipdb.set_trace()
+
+
+         for i in range(0, octomap_rotation_angles - 1):
+            Q.append([])
+            Q[i].append(group_current_pose.position.x)
+            Q[i].append(group_current_pose.position.y)
+            Q[i].append(group_current_pose.position.z)
+            Q[i].append(group_current_pose.orientation.x)
+            Q[i].append(group_current_pose.orientation.y)
+            Q[i].append(group_current_pose.orientation.z)
+            group_current_pose = rotate_pose_msg_by_euler_angles(group_current_pose, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles)
+            group_current_pose = translate_pose_msg(group_current_pose, octomap_translations_x, octomap_translations_y, octomap_translations_z)
+            oct_poses.append(copy.deepcopy(group_current_pose))
+            g.trajectory.points.append(JointTrajectoryPoint(positions=Q[i], velocities=[0] * 6, time_from_start=rospy.Duration(0.0+i*3.0)))
+
+         client.send_goal(g)
+         client.wait_for_result()
+         print("Octomap calibration positions:")
+         print(g)
+        except KeyboardInterrupt:
+         rospy.signal_shutdown("KeyboardInterrupt")
+         raise
 
     def initial_pose(self):
         pevent("Initial pose sequence started")
-        group_name = "manipulator"
-       # ipdb.set_trace()
-        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
+      #  group_name = "manipulator"
+      #  ipdb.set_trace()
+      #  group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
+
 
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.position.x = 1.07464909554
@@ -394,15 +440,26 @@ if __name__ == "__main__":
     rospy.init_node("gpd_pick_and_place")
 
     pnp = GpdPickPlace(mark_pose=True)
-    print "To build the initial octomap we make the robot move between the following poses:"
-    print str([Q1[i] * 180. / pi for i in xrange(0, 6)])
-    print str([Q2[i] * 180. / pi for i in xrange(0, 6)])
-    print str([Q3[i] * 180. / pi for i in xrange(0, 6)])
-    print str([Q4[i] * 180. / pi for i in xrange(0, 6)])
-    print str([Q5[i] * 180. / pi for i in xrange(0, 6)])
-    print str([Q6[i] * 180. / pi for i in xrange(0, 6)])
-    print "Please make sure that your robot can move freely between these poses before proceeding!"
-    inp = raw_input("Continue? y/n: ")[0]
+ #   (position, velocity, effort) = call_return_joint_states(JOINT_NAMES)
+ #   print("current position is:", pplist(position))
+    #print("current velocity is:", pplist(velocity))
+    #print("current effort is:", pplist(effort))
+
+    group_name = "manipulator"
+    group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
+                                                ns="/summit_xl")
+
+
+
+# print "To build the initial octomap we make the robot move between the following poses:"
+ #   print str([Q1[i] * 180. / pi for i in xrange(0, 6)])
+  #  print str([Q2[i] * 180. / pi for i in xrange(0, 6)])
+   # print str([Q3[i] * 180. / pi for i in xrange(0, 6)])
+   # print str([Q4[i] * 180. / pi for i in xrange(0, 6)])
+   # print str([Q5[i] * 180. / pi for i in xrange(0, 6)])
+   # print str([Q6[i] * 180. / pi for i in xrange(0, 6)])
+    print "Please make sure that your robot can move freely before proceeding!"
+    inp = raw_input("Do you need to rebuild the octomap? y/n: ")[0]
     if (inp == 'y'):
         pnp.initial_octomap_building()
         print("Initial rotation for octomap building  performed")
@@ -411,7 +468,7 @@ if __name__ == "__main__":
     # Start the ROS node
       # Set the value to the gripper
   #  print("--- Start Physical Arm ---")
- #   ipdb.set_trace()
+ #
 
 
 
