@@ -1,5 +1,5 @@
 import rospy
-import ipdb
+#import ipdb
 import numpy as np
 import copy
 import tf
@@ -43,6 +43,7 @@ from control_msgs.msg import *
 from trajectory_msgs.msg import *
 from sensor_msgs.msg import JointState
 import actionlib
+from filter_pointcloud_client import call_pointcloud_filter_service
 
 
 JOINT_NAMES = ['arm_shoulder_pan_joint', 'arm_shoulder_lift_joint', 'arm_elbow_joint',
@@ -221,8 +222,7 @@ class GpdPickPlace(object):
         pevent("Place sequence started")
         group_name = "manipulator"
         # ipdb.set_trace()
-        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description",
-                                                    ns="summit_xl")
+        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl/")
         # group.set_planner_id("PRMkConfigDefault")
 
         pose_goal = geometry_msgs.msg.Pose()
@@ -365,7 +365,7 @@ class GpdPickPlace(object):
         pevent("Initial pose sequence started")
         group_name = "manipulator"
        # ipdb.set_trace()
-        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="summit_xl")
+        group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl/")
 
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.position.x = 1.07464909554
@@ -463,9 +463,10 @@ if __name__ == "__main__":
         pnp.initial_pose()
 
          # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-        gpd_prep = GpdGrasps(max_messages=8)
-        gpd_prep.filter_cloud()
-        gpd_prep.publish_indexed_cloud()
+#        gpd_prep = GpdGrasps(max_messages=8)
+#        gpd_prep.filter_cloud()
+#        gpd_prep.publish_indexed_cloud()
+        call_pointcloud_filter_service()
 
 
         # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
