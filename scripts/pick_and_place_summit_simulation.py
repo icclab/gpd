@@ -1,5 +1,5 @@
 import rospy
-import ipdb
+#import ipdb
 import numpy as np
 import copy
 import tf
@@ -44,27 +44,27 @@ from trajectory_msgs.msg import *
 from sensor_msgs.msg import JointState
 import actionlib
 
-#import roslib
-#roslib.load_manifest('joint_states_listener')
-#from joint_states_listener.srv import ReturnJointStates
+import roslib
+roslib.load_manifest('joint_states_listener')
+from joint_states_listener.srv import ReturnJointStates
 
 
-#def call_return_joint_states(joint_names):
- #   rospy.wait_for_service("return_joint_states")
- #   try:
-  #      s = rospy.ServiceProxy("return_joint_states", ReturnJointStates)
-   #     resp = s(joint_names)
-   # except rospy.ServiceException, e:
-   #     print "error when calling return_joint_states: %s"%e
-   #     sys.exit(1)
-   # for (ind, joint_name) in enumerate(joint_names):
-   #     if(not resp.found[ind]):
-   #         print "joint %s not found!"%joint_name
-   # return (resp.position, resp.velocity, resp.effort)
+def call_return_joint_states(joint_names):
+    rospy.wait_for_service("return_joint_states")
+    try:
+        s = rospy.ServiceProxy("return_joint_states", ReturnJointStates)
+        resp = s(joint_names)
+    except rospy.ServiceException, e:
+        print "error when calling return_joint_states: %s"%e
+        sys.exit(1)
+    for (ind, joint_name) in enumerate(joint_names):
+        if(not resp.found[ind]):
+            print "joint %s not found!"%joint_name
+    return (resp.position, resp.velocity, resp.effort)
 
     # pretty-print list to string
-#def pplist(list):
- #   return ' '.join(['%2.3f' % x for x in list])
+def pplist(list):
+    return ' '.join(['%2.3f' % x for x in list])
 
 JOINT_NAMES = ['arm_shoulder_pan_joint', 'arm_shoulder_lift_joint', 'arm_elbow_joint',
                'arm_wrist_1_joint', 'arm_wrist_2_joint', 'arm_wrist_3_joint']
@@ -361,18 +361,25 @@ class GpdPickPlace(object):
 
         # pose_current = [group.get_current_pose().pose.position.x, group.get_current_pose().pose.position.y, group.get_current_pose().pose.position.z, group.get_current_pose().pose.orientation.x, group.get_current_pose().pose.orientation.y, group.get_current_pose().pose.orientation.z]
 
-        group_current_pose = group.get_current_pose().pose
-        print("Initial position:")
-        print(group_current_pose)
-        oct_poses = list()
+       # group_current_pose = group.get_current_pose().pose
+       # print("Initial position:")
+       # print(group_current_pose)
+       # oct_poses = list()
         Q = []
-        oct_poses.append(copy.deepcopy(group_current_pose))
+        #oct_poses.append(copy.deepcopy(group_current_pose))
 
     # Rotate place pose to generate more possible configurations for the planner
         octomap_rotation_angles = 16  # Number of possible place poses
-        octomap_translations_x = 0.05
-        octomap_translations_y = 0.05
-        octomap_translations_z = 0.05
+    #    octomap_translations_x = 0.1
+    #    octomap_translations_y = 0.1
+    #    octomap_translations_z = 0.1
+
+        (position, velocity, effort) = call_return_joint_states(JOINT_NAMES)
+        print("current position is:", pplist(position))
+        #time.sleep(1)
+
+    #print("current velocity is:", pplist(velocity))
+    #print("current effort is:", pplist(effort))
         try:
          client = actionlib.SimpleActionClient('/summit_xl/arm_pos_based_pos_traj_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
          print "Waiting for server..."
@@ -382,26 +389,75 @@ class GpdPickPlace(object):
          g = FollowJointTrajectoryGoal()
          g.trajectory = JointTrajectory()
          g.trajectory.joint_names = JOINT_NAMES
-       #  ipdb.set_trace()
 
-
+         num_joints = len(JOINT_NAMES)
          for i in range(0, octomap_rotation_angles - 1):
             Q.append([])
-            Q[i].append(group_current_pose.position.x)
-            Q[i].append(group_current_pose.position.y)
-            Q[i].append(group_current_pose.position.z)
-            Q[i].append(group_current_pose.orientation.x)
-            Q[i].append(group_current_pose.orientation.y)
-            Q[i].append(group_current_pose.orientation.z)
-            group_current_pose = rotate_pose_msg_by_euler_angles(group_current_pose, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles)
-            group_current_pose = translate_pose_msg(group_current_pose, octomap_translations_x, octomap_translations_y, octomap_translations_z)
-            oct_poses.append(copy.deepcopy(group_current_pose))
-            g.trajectory.points.append(JointTrajectoryPoint(positions=Q[i], velocities=[0] * 6, time_from_start=rospy.Duration(0.0+i*3.0)))
+            for j in range(0, num_joints):
+                if (i>0):
+                    Q[i].append(Q[i-1][j]) #copia precedente position
+                else:
+                    Q[i].append(position[j]) #non la prima volta
 
+                #each joint has a special treatement according to boundaries
+                if (j==0): #joint 1
+                    if (Q[i][j]) > 0:
+                        Q[i][j] += -(0.05)
+                    elif (Q[i][j]) < 0:
+                        Q[i][j] += -(0.05)
+                    else:
+                        Q[i][j] += -(0.01)
+                elif (j==1): #joint 2
+                    if (Q[i][j]) > 0:
+                        Q[i][j] += -(0.1)
+                    elif (Q[i][j]) < -2:
+                        Q[i][j] += -(0.1)
+                    else:
+                        Q[i][j] += -(0.1)
+                elif (j==2): #joint 3
+                    if (Q[i][j]) > 0:
+                        Q[i][j] += -(0.1)
+                    elif (Q[i][j]) < -1:
+                        Q[i][j] += -(0.1)
+                    else:
+                        Q[i][j] += -(0.1)
+                elif (j==3): #joint 4
+                    if (Q[i][j]) > 0:
+                        Q[i][j] += -(0.2)
+                    elif (Q[i][j]) < -2:
+                        Q[i][j] += -(0.2)
+                    else:
+                        Q[i][j] += -(0.5)
+                elif (j==4): #joint 5
+                    if (Q[i][j]) > 3:
+                        Q[i][j] += -(0.5)
+                    elif (Q[i][j]) < -3:
+                        Q[i][j] += -(0.5)
+                    else:
+                        Q[i][j] += -(0.5)
+                else: #joint 6
+                    if (Q[i][j]) > 3:
+                        Q[i][j] += -(0.5)
+                    elif (Q[i][j]) < -3:
+                        Q[i][j] += (0.5)
+                    else:
+                        Q[i][j] += -(0.5)
+
+           # Q[i].append(group_current_pose.position.x)
+           # Q[i].append(group_current_pose.position.y)
+           # Q[i].append(group_current_pose.position.z)
+           # Q[i].append(group_current_pose.orientation.x)
+           # Q[i].append(group_current_pose.orientation.y)
+           # Q[i].append(group_current_pose.orientation.z)
+           # group_current_pose = rotate_pose_msg_by_euler_angles(group_current_pose, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles, 2 * math.pi / octomap_rotation_angles)
+           # group_current_pose = translate_pose_msg(group_current_pose, 0, octomap_translations_y, 0)
+            #oct_poses.append(copy.deepcopy(group_current_pose))
+            g.trajectory.points.append(JointTrajectoryPoint(positions=Q[i], velocities=[0] * 6, time_from_start=rospy.Duration(0.0+i*3.0)))
+      #   ipdb.set_trace()
          client.send_goal(g)
          client.wait_for_result()
-         print("Octomap calibration positions:")
-         print(g)
+         (position, velocity, effort) = call_return_joint_states(JOINT_NAMES)
+         print("current position end is:", pplist(position))
         except KeyboardInterrupt:
          rospy.signal_shutdown("KeyboardInterrupt")
          raise
