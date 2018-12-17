@@ -1,5 +1,5 @@
 import rospy
-#import ipdb
+import ipdb
 import numpy as np
 import copy
 import tf
@@ -45,31 +45,9 @@ from sensor_msgs.msg import JointState
 import actionlib
 from filter_pointcloud_client import call_pointcloud_filter_service
 
-import roslib
-roslib.load_manifest('joint_states_listener')
-from joint_states_listener.srv import ReturnJointStates
-
-
-#using the joint_states_listener to get the current state of the joints
-def call_return_joint_states(joint_names):
-    rospy.wait_for_service("return_joint_states")
-    try:
-        s = rospy.ServiceProxy("return_joint_states", ReturnJointStates)
-        resp = s(joint_names)
-    except rospy.ServiceException, e:
-        print "error when calling return_joint_states: %s"%e
-        sys.exit(1)
-    for (ind, joint_name) in enumerate(joint_names):
-        if(not resp.found[ind]):
-            print "joint %s not found!"%joint_name
-    return (resp.position, resp.velocity, resp.effort)
-
-    # pretty-print list to string
-def pplist(list):
-    return ' '.join(['%2.3f' % x for x in list])
-
-JOINT_NAMES = ['arm_shoulder_pan_joint', 'arm_shoulder_lift_joint', 'arm_elbow_joint',
-               'arm_wrist_1_joint', 'arm_wrist_2_joint', 'arm_wrist_3_joint']
+from moveit_commander import MoveGroupCommander, RobotCommander
+from moveit_msgs.msg import Constraints, OrientationConstraint, PositionConstraint, JointConstraint
+from copy import deepcopy
 
 client = None
 
@@ -332,89 +310,54 @@ class GpdPickPlace(object):
 
         return g
 
+    def initial_pose_constraints(self):
+        pevent("Initial constrained pose sequence started")
+        upright_constraints = Constraints()
+        joint_constraint = JointConstraint()
+        upright_constraints.name = "upright"
+        joint_constraint.position = 0
+        joint_constraint.tolerance_above = .3
+        joint_constraint.tolerance_below = .3
+        joint_constraint.weight = 1
 
-    def initial_octomap_building(self):
-        global client
+        joint_constraint.joint_name = "arm_shoulder_pan_joint"
+        upright_constraints.joint_constraints.append(joint_constraint)
 
-        Q = []
-        octomap_rotation_angles = 16  # Number of possible place poses
-        (position, velocity, effort) = call_return_joint_states(JOINT_NAMES)
-        print("current position is:", pplist(position))
+        # Store the current pose
+        start_pose = group.get_current_pose("arm_ee_link")
 
-        try:
-         client = actionlib.SimpleActionClient('/summit_xl/arm_pos_based_pos_traj_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-         print "Waiting for server..."
-         client.wait_for_server()
-         print "Connected to server"
+         # Set the path constraints on the right_arm
+        group.set_path_constraints(upright_constraints)
 
-         g = FollowJointTrajectoryGoal()
-         g.trajectory = JointTrajectory()
-         g.trajectory.joint_names = JOINT_NAMES
+        group.allow_replanning(True)
 
-         num_joints = len(JOINT_NAMES)
-         for i in range(0, octomap_rotation_angles - 1):
-            Q.append([])
-            for j in range(0, num_joints):
-                if (i>0):
-                    Q[i].append(Q[i-1][j]) #copy previous value, but not the first iteration
-                else:
-                    Q[i].append(position[j])
 
-                #each joint has a special treatement according to boundaries
-                if (j==0): #joint 1
-                    if (Q[i][j]) > 0:
-                        Q[i][j] += -(0.05)
-                    elif (Q[i][j]) < 0:
-                        Q[i][j] += -(0.05)
-                    else:
-                        Q[i][j] += -(0.01)
-                elif (j==1): #joint 2
-                    if (Q[i][j]) > 0:
-                        Q[i][j] += -(0.1)
-                    elif (Q[i][j]) < -2:
-                        Q[i][j] += -(0.1)
-                    else:
-                        Q[i][j] += -(0.1)
-                elif (j==2): #joint 3
-                    if (Q[i][j]) > 0:
-                        Q[i][j] += -(0.1)
-                    elif (Q[i][j]) < -1:
-                        Q[i][j] += -(0.1)
-                    else:
-                        Q[i][j] += -(0.1)
-                elif (j==3): #joint 4
-                    if (Q[i][j]) > 0:
-                        Q[i][j] += -(0.2)
-                    elif (Q[i][j]) < -2:
-                        Q[i][j] += -(0.2)
-                    else:
-                        Q[i][j] += -(0.5)
-                elif (j==4): #joint 5
-                    if (Q[i][j]) > 3:
-                        Q[i][j] += -(0.5)
-                    elif (Q[i][j]) < -3:
-                        Q[i][j] += -(0.5)
-                    else:
-                        Q[i][j] += -(0.5)
-                else: #joint 6
-                    if (Q[i][j]) > 3:
-                        Q[i][j] += -(0.5)
-                    elif (Q[i][j]) < -3:
-                        Q[i][j] += (0.5)
-                    else:
-                        Q[i][j] += -(0.5)
+        pose_goal = geometry_msgs.msg.Pose()
+        pose_goal.position.x = 1.07464909554
+        pose_goal.position.y = 0.00558180361986
+        pose_goal.position.z = 0.801929414272
+        pose_goal.orientation.w = 0.504062771797
+        pose_goal.orientation.x = -0.505350887775
+        pose_goal.orientation.y = 0.478404045105
+        pose_goal.orientation.z = 0.511537611485
 
-            g.trajectory.points.append(JointTrajectoryPoint(positions=Q[i], velocities=[0] * 6, time_from_start=rospy.Duration(0.0+i*3.0)))
-         client.send_goal(g)
-         client.wait_for_result()
-         (position, velocity, effort) = call_return_joint_states(JOINT_NAMES)
-         print("current position end is:", pplist(position))
-        except KeyboardInterrupt:
-         rospy.signal_shutdown("KeyboardInterrupt")
-         raise
+        group.set_pose_target(pose_goal)
+
+        # The go command can be called with joint values, poses, or without any
+        # parameters if you have already set the pose or joint target for the group
+        # group.go(joint_goal, wait=True)
+
+        plan = group.go(wait=True)
+        # Calling `stop()` ensures that there is no residual movement
+        group.stop()
+
+        group.clear_pose_targets()
+        # Clear all path constraints
+        group.clear_path_constraints()
 
     def initial_pose(self):
         pevent("Initial pose sequence started")
+
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.position.x = 1.07464909554
         pose_goal.position.y = 0.00558180361986
@@ -436,6 +379,7 @@ class GpdPickPlace(object):
 
         group.clear_pose_targets()
 
+
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
@@ -443,44 +387,46 @@ if __name__ == "__main__":
     pnp = GpdPickPlace(mark_pose=True)
     group_name = "manipulator"
     group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl")
+    #group.set_planner_id("RRTConnectkConfigDefault")
+    group.set_planning_time(5)
 
-    print "Please make sure that your robot can move freely before proceeding!"
-    inp = raw_input("Do you need to rebuild the octomap? y/n: ")[0]
-    if (inp == 'y'):
-        pnp.initial_octomap_building()
-        print("Initial rotation for octomap building  performed")
-    else:
-        print("Initial rotation for octomap building NOT performed")
 
     num_objects = 1
     for i in range (0, num_objects):
-        #ipdb.set_trace()
+
         # Subscribe for grasps
         print("--- Move Arm to Initial Position---")
-        pnp.initial_pose()
-
+        print "Please make sure that your robot can move freely in vertical before proceeding!"
+        inp = raw_input("Do you want to proceed? y/n: ")[0]
+        if (inp == 'y'):
+            pnp.initial_pose_constraints()
+            print("Initial arm positioning performed")
+                   # ipdb.set_trace()
+       # pnp.initial_pose()
          # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
-        #gpd_prep = GpdGrasps(max_messages=8)
-        #gpd_prep.filter_cloud()
-        #gpd_prep.publish_indexed_cloud()
-        
+       # gpd_prep = GpdGrasps(max_messages=8)
+       # gpd_prep.filter_cloud()
+       # gpd_prep.publish_indexed_cloud()
+
         #we have to add a check, so that this is called only if the initial_pose was successful
-        call_pointcloud_filter_service()
+            call_pointcloud_filter_service()
 
         # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
-        selected_grasps = pnp.get_gpd_grasps()
-        formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
-        result = gripper_client_2(8)
-        print("Gripper opened")
-
-        successful_grasp = pnp.pick(formatted_grasps, verbose=True)
-        result = gripper_client_2(-8)
-        print("Gripper closed")
-        if successful_grasp is not None:
-        # Place object with successful grasp pose as the starting point
-            pnp.place2(successful_grasp)
+            selected_grasps = pnp.get_gpd_grasps()
+            formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
             result = gripper_client_2(8)
             print("Gripper opened")
+
+            successful_grasp = pnp.pick(formatted_grasps, verbose=True)
+            result = gripper_client_2(-8)
+            print("Gripper closed")
+            if successful_grasp is not None:
+        # Place object with successful grasp pose as the starting point
+                pnp.place2(successful_grasp)
+                result = gripper_client_2(8)
+                print("Gripper opened")
+            else:
+                print("Initial arm positioning NOT performed")
     pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
 
 
