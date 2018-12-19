@@ -51,7 +51,7 @@ from moveit_msgs.msg import Constraints, OrientationConstraint, PositionConstrai
 from copy import deepcopy
 from pointcloud_operations import create_mesh_and_save
 from sensor_msgs import point_cloud2
-
+from get_ik import GetIK
 client = None
 
 class GpdPickPlace(object):
@@ -85,6 +85,17 @@ class GpdPickPlace(object):
             color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
         publisher.publish(marker_x)
 
+    def show_graspik_pose(self, publisher, grasp_pose):
+        marker_x = Marker(
+            type=Marker.ARROW,
+            id=0,
+            lifetime=rospy.Duration(60),
+            pose=grasp_pose,
+            scale=Vector3(0.04, 0.02, 0.02),
+            header=Header(frame_id='summit_xl_base_footprint'),
+            color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
+        publisher.publish(marker_x)
+
     def get_gpd_grasps(self):
         pevent("Waiting for grasps to arrive")
         while len(self.grasps) == 0:
@@ -92,85 +103,103 @@ class GpdPickPlace(object):
         return self.grasps
 
 #function for dyanamic tf listener
-    def tf_listen(self):
-        if self.tf.frameExists("arm_camera_depth_optical_frame") and self.tf.frameExists("gripper_base_link"):
-            t = self.tf.getLatestCommonTime("arm_camera_depth_optical_frame", "gripper_base_link")
-            position, quaternion = self.tf.lookupTransform("arm_camera_depth_optical_frame", "gripper_base_link", t)
-            print position, quaternion
+    def tf_listen(self, pose):
+        if self.tf.frameExists("arm_camera_depth_optical_frame") and self.tf.frameExists("summit_xl_base_footprint"):
+            t = self.tf.getLatestCommonTime("arm_camera_depth_optical_frame", "summit_xl_base_footprint")
+           # position, quaternion = self.tf.lookupTransform("summit_xl_base_footprint", "arm_camera_depth_optical_frame", t)
             #p1 = geometry_msgs.msg.PoseStamped()
-            #p1.header.frame_id = "gripper_base_link"
+            #p1.header.frame_id = "arm_camera_depth_optical_frame"
             #p1.pose.orientation.w = 1.0  # Neutral orientation
-            #p_in_base = self.tf_listener_.transformPose("arm_camera_depth_optical_frame", p1)
-            #print "Position "
-            #print p_in_base
-            return quaternion
+            p_in_base = tf_listener_.transformPose("/summit_xl_base_footprint", pose)
+        #    print "Position of the camera in the robot base:"
+         #   print p_in_base
+            return p_in_base
+           # print position, quaternion
+           # return quaternion
 
+        def generate_grasp_msgs(self, grasps):
+            formatted_grasps = []
+            tot_grasps = len(grasps)
+            cont = 0
+            for i in range(0, len(grasps)):  # dimitris, take out self. !
+                g = Grasp()
+                g.id = "dupa"
+                gp = PoseStamped()
+                gp.header.frame_id = "arm_camera_depth_optical_frame"
+                org_q = self.trans_matrix_to_quaternion(grasps[i])
 
-    def generate_grasp_msgs(self, grasps):
-        formatted_grasps = []
-        for i in range(0, len(grasps)): #dimitris, take out self. !
-            g = Grasp()
-            g.id = "dupa"
-            gp = PoseStamped()
-            gp.header.frame_id = "arm_camera_depth_optical_frame"
-            org_q = self.trans_matrix_to_quaternion(grasps[i])
-            rot_z_q = Quaternion(-0.7071, 0, 0, 0.7071) #270* around Z axis (W, X, Y, Z)
+                #   self.tf_listener_ = TransformListener()
+                #    rospy.sleep(1)
+                #           dyn_rot = self.tf_listen()
+                #          dyn_rot_pyquaternion = copy.deepcopy(dyn_rot)
+                #           dyn_rot_pyquaternion[0] = copy.deepcopy(dyn_rot[3])
+                #           dyn_rot_pyquaternion[1] = copy.deepcopy(dyn_rot[0])
+                #          dyn_rot_pyquaternion[2] = copy.deepcopy(dyn_rot[1])
+                #         dyn_rot_pyquaternion[3] = copy.deepcopy(dyn_rot[2])
+                #         quat2 = org_q * dyn_rot_pyquaternion
+                # quat =  quat1 * rot_z_q
 
-            #code for dynamic tf listening and transformation
-           # self.tf_listener_ = TransformListener()
-           # dyn_rot = self.tf_listen()
-            #dyn_rot_pyquaternion = copy.deepcopy(dyn_rot)
-            #dyn_rot_pyquaternion[0] = copy.deepcopy(dyn_rot[3])
-            #dyn_rot_pyquaternion[1] = copy.deepcopy(dyn_rot[0])
-            #dyn_rot_pyquaternion[2] = copy.deepcopy(dyn_rot[1])
-            #dyn_rot_pyquaternion[3] = copy.deepcopy(dyn_rot[2])
-          #  quat1 = org_q * dyn_rot_pyquaternion
-            #quat =  quat1 * rot_z_q
+                quat = org_q  # * rot_z_q
 
-            quat = org_q #* rot_z_q
+                gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
+                gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
+                gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
 
-            gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
-            gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
-            gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
+                gp.pose.orientation.x = float(quat.elements[1])
+                gp.pose.orientation.y = float(quat.elements[2])
+                gp.pose.orientation.z = float(quat.elements[3])
+                gp.pose.orientation.w = float(quat.elements[0])
 
-            gp.pose.orientation.x = float(quat.elements[1])
-            gp.pose.orientation.y = float(quat.elements[2])
-            gp.pose.orientation.z = float(quat.elements[3])
-            gp.pose.orientation.w = float(quat.elements[0])
-            #library used is pyquaternion http://kieranwynn.github.io/pyquaternion/
+                #            ipdb.set_trace()
+                gp_in_base = self.tf_listen(gp)
+                resp = gik.get_ik(gp_in_base)
+                #   rospy.loginfo(str(resp))
+                err_code = resp.error_code.val
 
-            g.grasp_pose = gp
+                self.show_grasp_pose(self.marker_publisher, gp.pose)
+                rospy.sleep(1)
 
-            g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
-            g.pre_grasp_approach.direction.vector.z = 1.0
-            g.pre_grasp_approach.min_distance = 0.06
-            g.pre_grasp_approach.desired_distance = 0.1
+                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
+                rospy.sleep(1)
 
-         #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-         #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
-       #     g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
-        #    pos = JointTrajectoryPoint()
-        #    pos.positions.append(0)
-         #   pos.positions.append(0.1337)
-         #   g.pre_grasp_posture.points.append(pos)
+                rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
+                if (err_code == -31):
+                    cont += 1
+                elif (err_code == 1):
+                    g.grasp_pose = gp
+                    g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
+                    g.pre_grasp_approach.direction.vector.z = 1.0
+                    g.pre_grasp_approach.min_distance = 0.06
+                    g.pre_grasp_approach.desired_distance = 0.1
 
-          #  g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-          #  g.grasp_posture.joint_names = ["joint_6"]
-          #  pos = JointTrajectoryPoint()
-          #  pos.positions.append(0.0)
-          #  pos.positions.append(0.0)
-          #  pos.accelerations.append(0.0)
-          #  pos.accelerations.append(0.0)
-          #  g.grasp_posture.points.append(pos)
-          #  g.grasp_posture.header.frame_id = "hand_link"
+                    #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+                    #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
+                    #     g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
+                    #    pos = JointTrajectoryPoint()
+                    #    pos.positions.append(0)
+                    #   pos.positions.append(0.1337)
+                    #   g.pre_grasp_posture.points.append(pos)
 
-            g.allowed_touch_objects = ["<octomap>", "obj"]
-            g.max_contact_force = 0.0
-            #g.grasp_quality = grasps[0].score.data  perche 0 e non i????
-            g.grasp_quality = grasps[0].score.data
+                    #  g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+                    #  g.grasp_posture.joint_names = ["joint_6"]
+                    #  pos = JointTrajectoryPoint()
+                    #  pos.positions.append(0.0)
+                    #  pos.positions.append(0.0)
+                    #  pos.accelerations.append(0.0)
+                    #  pos.accelerations.append(0.0)
+                    #  g.grasp_posture.points.append(pos)
+                    #  g.grasp_posture.header.frame_id = "hand_link"
 
-            formatted_grasps.append(g)
-        return formatted_grasps
+                    g.allowed_touch_objects = ["<octomap>", "obj"]
+                    g.max_contact_force = 0.0
+                    # g.grasp_quality = grasps[0].score.data  perche 0 e non i????
+                    g.grasp_quality = grasps[0].score.data
+
+                    formatted_grasps.append(g)
+                else:
+                    pass
+            print(repr(cont) + " grasps out of " + repr(tot_grasps) + " removed because of no IK_SOLUTION error")
+            return formatted_grasps
 
     def trans_matrix_to_quaternion(self, grasp):
         r = np.array([[grasp.approach.x, grasp.binormal.x, grasp.axis.x],
@@ -399,13 +428,14 @@ class GpdPickPlace(object):
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
     rospy.init_node("gpd_pick_and_place")
-
+    tf_listener_ = TransformListener()
     pnp = GpdPickPlace(mark_pose=True)
     group_name = "manipulator"
     group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl")
     #group.set_planner_id("RRTConnectkConfigDefault")
     group.set_planning_time(5)
-
+    gik = GetIK(group='manipulator', ik_timeout=1.0,
+                              ik_attempts=1,  avoid_collisions=True)
 
     num_objects = 1
     for i in range (0, num_objects):
