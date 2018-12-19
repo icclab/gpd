@@ -42,12 +42,15 @@ import copy
 from control_msgs.msg import *
 from trajectory_msgs.msg import *
 from sensor_msgs.msg import JointState
+import sensor_msgs
 import actionlib
 from filter_pointcloud_client import call_pointcloud_filter_service
 
 from moveit_commander import MoveGroupCommander, RobotCommander
 from moveit_msgs.msg import Constraints, OrientationConstraint, PositionConstraint, JointConstraint
 from copy import deepcopy
+from pointcloud_operations import create_mesh_and_save
+from sensor_msgs import point_cloud2
 
 client = None
 
@@ -57,8 +60,7 @@ class GpdPickPlace(object):
     grasp_offset = -0.1
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList,
-                                                 self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
 
         if mark_pose:
             self.mark_pose = True
@@ -378,7 +380,21 @@ class GpdPickPlace(object):
         group.stop()
 
         group.clear_pose_targets()
+        
+    def wait_for_mesh_and_save(self):
+      pinfo("Subscribing to pointcloud to generate mesh")
+      self.obj_pc_subscriber = rospy.Subscriber("/cloud_indexed_pc_only", sensor_msgs.msg.PointCloud2 , self.obj_pointcloud_callback)
+      
 
+    def obj_pointcloud_callback(self, msg): #msg is a sensor_msgs.msg.PointCloud2
+#      pcl::toROSMsg
+      pinfo("Pointcloud received")
+      cloud = []
+      for p in point_cloud2.read_points(msg, skip_nans=True):
+                cloud.append([p[0], p[1], p[2]])
+      create_mesh_and_save(cloud)
+      pinfo("Mesh generated")
+      self.obj_pc_subscriber.unregister()
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
@@ -397,10 +413,10 @@ if __name__ == "__main__":
         # Subscribe for grasps
         print("--- Move Arm to Initial Position---")
         print "Please make sure that your robot can move freely in vertical before proceeding!"
-        inp = raw_input("Do you want to proceed? y/n: ")[0]
-        if (inp == 'y'):
-            pnp.initial_pose_constraints()
-            print("Initial arm positioning performed")
+#        inp = raw_input("Do you want to proceed? y/n: ")[0]
+#        if (inp == 'y'):
+        pnp.initial_pose_constraints()
+        print("Initial arm positioning performed")
                    # ipdb.set_trace()
        # pnp.initial_pose()
          # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
@@ -409,24 +425,25 @@ if __name__ == "__main__":
        # gpd_prep.publish_indexed_cloud()
 
         #we have to add a check, so that this is called only if the initial_pose was successful
-            call_pointcloud_filter_service()
+        call_pointcloud_filter_service()
+        pnp.wait_for_mesh_and_save()
 
-        # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
-            selected_grasps = pnp.get_gpd_grasps()
-            formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
+    # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
+        selected_grasps = pnp.get_gpd_grasps()
+        formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
+        result = gripper_client_2(8)
+        print("Gripper opened")
+
+        successful_grasp = pnp.pick(formatted_grasps, verbose=True)
+        result = gripper_client_2(-8)
+        print("Gripper closed")
+        if successful_grasp is not None:
+    # Place object with successful grasp pose as the starting point
+            pnp.place2(successful_grasp)
             result = gripper_client_2(8)
             print("Gripper opened")
-
-            successful_grasp = pnp.pick(formatted_grasps, verbose=True)
-            result = gripper_client_2(-8)
-            print("Gripper closed")
-            if successful_grasp is not None:
-        # Place object with successful grasp pose as the starting point
-                pnp.place2(successful_grasp)
-                result = gripper_client_2(8)
-                print("Gripper opened")
-            else:
-                print("Initial arm positioning NOT performed")
+        else:
+            print("Initial arm positioning NOT performed")
     pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
 
 
