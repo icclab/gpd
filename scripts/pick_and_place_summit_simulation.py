@@ -65,7 +65,7 @@ for name in MoveItErrorCodes.__dict__.keys():
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.1
+    grasp_offset = -0.15
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -176,7 +176,7 @@ class GpdPickPlace(object):
                 elif (err_code == 1):
                     g.grasp_pose = gp
                     g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
-                    g.pre_grasp_approach.direction.vector.z = 1.0
+                    g.pre_grasp_approach.direction.vector.x = 1.0
                     g.pre_grasp_approach.min_distance = 0.06
                     g.pre_grasp_approach.desired_distance = 0.1
 
@@ -445,7 +445,7 @@ if __name__ == "__main__":
     #group.set_planner_id("RRTConnectkConfigDefault")
    # group.set_planning_time(5)
     gik = GetIK(group='manipulator', ik_timeout=1.0,
-                              ik_attempts=1,  avoid_collisions=True)
+                              ik_attempts=1,  avoid_collisions=False)
 
     num_objects = 1
     for i in range (0, num_objects):
