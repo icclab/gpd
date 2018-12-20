@@ -93,16 +93,16 @@ class GpdPickPlace(object):
             color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
         publisher.publish(marker_x)
 
-    def show_graspik_pose(self, publisher, grasp_pose):
-        marker_x = Marker(
-            type=Marker.ARROW,
-            id=0,
-            lifetime=rospy.Duration(60),
-            pose=grasp_pose,
-            scale=Vector3(0.04, 0.02, 0.02),
-            header=Header(frame_id='summit_xl_base_footprint'),
-            color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
-        publisher.publish(marker_x)
+  #  def show_graspik_pose(self, publisher, grasp_pose):
+  #      marker_x = Marker(
+  #          type=Marker.ARROW,
+  #          id=0,
+  #          lifetime=rospy.Duration(60),
+  #          pose=grasp_pose,
+  #          scale=Vector3(0.04, 0.02, 0.02),
+  #          header=Header(frame_id='summit_xl_base_footprint'),
+  #          color=ColorRGBA(0.0, 1.0, 0.0, 0.8))
+  #      publisher.publish(marker_x)
 
     def get_gpd_grasps(self):
         pevent("Waiting for grasps to arrive")
@@ -167,8 +167,8 @@ class GpdPickPlace(object):
                 self.show_grasp_pose(self.marker_publisher, gp.pose)
                 rospy.sleep(1)
 
-                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
-                rospy.sleep(1)
+#                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
+#                rospy.sleep(1)
 
                 rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
                 if (err_code == -31):
@@ -230,6 +230,8 @@ class GpdPickPlace(object):
                 pevent("Executing grasp: ")
                 pprint(single_grasp.grasp_pose.pose)
 
+
+
             pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
                                         allow_gripper_support_collision=True)
 
@@ -271,7 +273,7 @@ class GpdPickPlace(object):
 
 
         places = self.generate_place_poses(place_pose)
-
+        ipdb.set_trace()
         place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planning_time=9001,
                                   goal_is_eef=True)
 
@@ -368,17 +370,17 @@ class GpdPickPlace(object):
          # Set the path constraints on the right_arm
         group.set_path_constraints(upright_constraints)
 
-        group.allow_replanning(True)
+      #  group.allow_replanning(True)
 
 
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.position.x = 1.07464909554
         pose_goal.position.y = 0.00558180361986
-        pose_goal.position.z = 0.801929414272
-        pose_goal.orientation.w = 0.504062771797
-        pose_goal.orientation.x = -0.505350887775
-        pose_goal.orientation.y = 0.478404045105
-        pose_goal.orientation.z = 0.511537611485
+        pose_goal.position.z = 0.699603497982#0.801929414272
+        pose_goal.orientation.w = 0.512634038925#0.504062771797
+        pose_goal.orientation.x = -0.512619316578#-0.505350887775
+        pose_goal.orientation.y = 0.470291614532#0.478404045105
+        pose_goal.orientation.z = 0.503242969513#0.511537611485
 
         group.set_pose_target(pose_goal)
 
@@ -441,7 +443,7 @@ if __name__ == "__main__":
     group_name = "manipulator"
     group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl")
     #group.set_planner_id("RRTConnectkConfigDefault")
-    group.set_planning_time(5)
+   # group.set_planning_time(5)
     gik = GetIK(group='manipulator', ik_timeout=1.0,
                               ik_attempts=1,  avoid_collisions=True)
 
@@ -477,11 +479,11 @@ if __name__ == "__main__":
         print("Gripper closed")
         if successful_grasp is not None:
     # Place object with successful grasp pose as the starting point
-            pnp.place2(successful_grasp)
+            pnp.place(successful_grasp)
             result = gripper_client_2(8)
             print("Gripper opened")
         else:
-            print("Initial arm positioning NOT performed")
+            print("Grasp NOT performed")
     pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
 
 
