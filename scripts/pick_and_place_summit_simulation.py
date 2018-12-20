@@ -54,6 +54,14 @@ from sensor_msgs import point_cloud2
 from get_ik import GetIK
 client = None
 
+from moveit_msgs.msg import MoveItErrorCodes
+# Build a useful mapping from MoveIt error codes to error names
+moveit_error_dict = {}
+for name in MoveItErrorCodes.__dict__.keys():
+    if not name[:1] == '_':
+        code = MoveItErrorCodes.__dict__[name]
+        moveit_error_dict[code] = name
+
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
@@ -117,7 +125,7 @@ class GpdPickPlace(object):
            # print position, quaternion
            # return quaternion
 
-        def generate_grasp_msgs(self, grasps):
+    def generate_grasp_msgs(self, grasps):
             formatted_grasps = []
             tot_grasps = len(grasps)
             cont = 0
