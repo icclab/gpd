@@ -68,7 +68,7 @@ class GpdPickPlace(object):
     grasp_offset = -0.15
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
 
         if mark_pose:
             self.mark_pose = True
@@ -89,7 +89,7 @@ class GpdPickPlace(object):
             lifetime=rospy.Duration(60),
             pose=grasp_pose,
             scale=Vector3(0.04, 0.02, 0.02),
-            header=Header(frame_id='arm_camera_color_optical_frame'),
+            header=Header(frame_id='summit_xl_base_footprint'),
             color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
         publisher.publish(marker_x)
 
@@ -157,55 +157,62 @@ class GpdPickPlace(object):
                 gp.pose.orientation.y = float(quat.elements[2])
                 gp.pose.orientation.z = float(quat.elements[3])
                 gp.pose.orientation.w = float(quat.elements[0])
+                
+                listener = TransformListener(True, rospy.Duration(10.0))
+                listener.waitForTransform('/arm_camera_color_optical_frame', '/summit_xl_base_footprint', rospy.Time(), rospy.Duration(1.0))
+                print("Grasp pose before transformation:" + str(gp))
+                grasp_pose = listener.transformPose("summit_xl_base_footprint", gp)
+                print("Grasp pose after transformation:" + str(grasp_pose))
+                g.grasp_pose = grasp_pose
 
                 #            ipdb.set_trace()
-                gp_in_base = self.tf_listen(gp)
-                resp = gik.get_ik(gp_in_base)
-                #   rospy.loginfo(str(resp))
-                err_code = resp.error_code.val
+#                gp_in_base = self.tf_listen(gp)
+#                resp = gik.get_ik(gp_in_base)
+#                #   rospy.loginfo(str(resp))
+#                err_code = resp.error_code.val
 
-                self.show_grasp_pose(self.marker_publisher, gp.pose)
-                rospy.sleep(1)
-
-#                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
+#                self.show_grasp_pose(self.marker_publisher, gp.pose)
 #                rospy.sleep(1)
 
-                rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
-                if (err_code == -31):
-                    cont += 1
-                elif (err_code == 1):
-                    g.grasp_pose = gp
-                    g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
-                    g.pre_grasp_approach.direction.vector.x = 1.0
-                    g.pre_grasp_approach.min_distance = 0.06
-                    g.pre_grasp_approach.desired_distance = 0.1
+##                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
+##                rospy.sleep(1)
 
-                    #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-                    #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
-                    #     g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
-                    #    pos = JointTrajectoryPoint()
-                    #    pos.positions.append(0)
-                    #   pos.positions.append(0.1337)
-                    #   g.pre_grasp_posture.points.append(pos)
+#                rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
+#                if (err_code == -31):
+#                    cont += 1
+#                elif (err_code == 1):
+#                g.grasp_pose = gp
+                g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
+                g.pre_grasp_approach.direction.vector.x = 1.0
+                g.pre_grasp_approach.min_distance = 0.06
+                g.pre_grasp_approach.desired_distance = 0.1
 
-                    #  g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
-                    #  g.grasp_posture.joint_names = ["joint_6"]
-                    #  pos = JointTrajectoryPoint()
-                    #  pos.positions.append(0.0)
-                    #  pos.positions.append(0.0)
-                    #  pos.accelerations.append(0.0)
-                    #  pos.accelerations.append(0.0)
-                    #  g.grasp_posture.points.append(pos)
-                    #  g.grasp_posture.header.frame_id = "hand_link"
+                #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+                #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
+                #     g.pre_grasp_posture.header.frame_id = "arm_wrist_3_link"
+                #    pos = JointTrajectoryPoint()
+                #    pos.positions.append(0)
+                #   pos.positions.append(0.1337)
+                #   g.pre_grasp_posture.points.append(pos)
 
-                    g.allowed_touch_objects = ["<octomap>", "obj"]
-                    g.max_contact_force = 0.0
-                    # g.grasp_quality = grasps[0].score.data  perche 0 e non i????
-                    g.grasp_quality = grasps[0].score.data
+                #  g.grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
+                #  g.grasp_posture.joint_names = ["joint_6"]
+                #  pos = JointTrajectoryPoint()
+                #  pos.positions.append(0.0)
+                #  pos.positions.append(0.0)
+                #  pos.accelerations.append(0.0)
+                #  pos.accelerations.append(0.0)
+                #  g.grasp_posture.points.append(pos)
+                #  g.grasp_posture.header.frame_id = "hand_link"
 
-                    formatted_grasps.append(g)
-                else:
-                    pass
+                g.allowed_touch_objects = ["<octomap>", "obj"]
+                g.max_contact_force = 0.0
+                # g.grasp_quality = grasps[0].score.data  perche 0 e non i????
+                g.grasp_quality = grasps[0].score.data
+
+                formatted_grasps.append(g)
+#                else:
+#                    pass
             print(repr(cont) + " grasps out of " + repr(tot_grasps) + " removed because of no IK_SOLUTION error")
             return formatted_grasps
 
@@ -225,26 +232,31 @@ class GpdPickPlace(object):
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
                 rospy.sleep(1)
-
-            if verbose:
+        
+            pevent("Planning grasp:")
+            pprint(single_grasp.grasp_pose)
+            group.set_pose_target(single_grasp.grasp_pose.pose)
+            plan = group.plan()
+            if (len(plan.joint_trajectory.points) != 0):
+              inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
+              if (inp == 'y'):                
                 pevent("Executing grasp: ")
-                pprint(single_grasp.grasp_pose.pose)
+#                pprint(single_grasp.grasp_pose)
 
+                pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>", allow_gripper_support_collision=True)
 
+                pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
 
-            pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
-                                        allow_gripper_support_collision=True)
-
-            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
-
-            if pick_result.error_code.val == 1:
-                pevent("Grasp successful!")
-                return single_grasp
-            else:
-                failed_grasps += 1
-                if failed_grasps == 10:
-                    pevent("All grasps failed. Aborting")
-                    exit(1)
+                if pick_result.error_code.val == 1:
+                    pevent("Grasp successful!")
+                    return single_grasp
+                else:
+                    failed_grasps += 1
+              elif (inp == 'exit'):
+                exit(1)
+                  
+        pevent("All grasps failed. Aborting")
+        exit(1)               
 
     def place2(self, place_pose):
         pevent("Place sequence started")
