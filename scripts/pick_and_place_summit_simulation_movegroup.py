@@ -65,7 +65,7 @@ for name in MoveItErrorCodes.__dict__.keys():
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.1
+    grasp_offset = -0.15
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -228,6 +228,24 @@ class GpdPickPlace(object):
         # Add object mesh to planning scene
         self.add_object_mesh()
 
+
+        upright_constraints = Constraints()
+        joint_constraint = JointConstraint()
+        upright_constraints.name = "upright"
+        joint_constraint.position = 0
+        joint_constraint.tolerance_above = 3.14/2
+        joint_constraint.tolerance_below = 3.14/2
+        joint_constraint.weight = 1
+
+        joint_constraint.joint_name = "arm_shoulder_pan_joint"
+        upright_constraints.joint_constraints.append(joint_constraint)
+
+        # Store the current pose
+        start_pose = group.get_current_pose("arm_ee_link")
+
+        # Set the path constraints on the right_arm
+        group.set_path_constraints(upright_constraints)
+
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
@@ -236,6 +254,7 @@ class GpdPickPlace(object):
             pevent("Planning grasp:")
             pprint(single_grasp.grasp_pose)
             group.set_pose_target(single_grasp.grasp_pose.pose)
+
             plan = group.plan()
             if (len(plan.joint_trajectory.points) != 0):
                 inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
@@ -254,6 +273,7 @@ class GpdPickPlace(object):
                     group.stop()
 
                     group.clear_pose_targets()
+                    group.clear_path_constraints()
                     #                pprint(single_grasp.grasp_pose)
 
                   #  pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
