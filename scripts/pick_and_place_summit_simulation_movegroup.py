@@ -65,7 +65,7 @@ for name in MoveItErrorCodes.__dict__.keys():
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.15
+    grasp_offset = -0.1
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -309,15 +309,29 @@ class GpdPickPlace(object):
         pose_goal.orientation.z = 0.185558646917
         group.set_pose_target(pose_goal)
 
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
-        # group.go(joint_goal, wait=True)
+        pevent("Planning pose:")
+        pprint(pose_goal)
+        group.set_pose_target(pose_goal)
+        plan = group.plan()
+        if (len(plan.joint_trajectory.points) != 0):
+            inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
+            if (inp == 'y'):
+                pevent("Executing place: ")
 
-        plan = group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        group.stop()
+                pick_result = group.execute(plan, wait=True)
 
-        group.clear_pose_targets()
+                if pick_result == True:
+                    pevent("Pose successful!")
+                else:
+                    pevent("Pose failed!")
+
+                # Calling `stop()` ensures that there is no residual movement
+                group.stop()
+
+                group.clear_pose_targets()
+            elif (inp == 'exit'):
+                exit(1)
+
 
     def place(self, place_pose):
         pevent("Place sequence started")
@@ -530,7 +544,7 @@ if __name__ == "__main__":
         print("Gripper closed")
         if successful_grasp is not None:
     # Place object with successful grasp pose as the starting point
-            pnp.place(successful_grasp)
+            pnp.place2(successful_grasp)
             result = gripper_client_2(8)
             print("Gripper opened")
         else:
