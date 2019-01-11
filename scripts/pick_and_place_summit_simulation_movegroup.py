@@ -68,7 +68,7 @@ class GpdPickPlace(object):
     grasp_offset = -0.15
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
 
         if mark_pose:
             self.mark_pose = True
