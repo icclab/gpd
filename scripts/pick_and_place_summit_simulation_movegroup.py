@@ -242,7 +242,13 @@ class GpdPickPlace(object):
                 if (inp == 'y'):
                     pevent("Executing grasp: ")
 
-                    group.execute(plan, wait=True)
+                    pick_result = group.execute(plan, wait=True)
+
+                    if pick_result == True:
+                     pevent("Grasp successful!")
+                     return single_grasp
+                    else:
+                         failed_grasps += 1
 
                     # Calling `stop()` ensures that there is no residual movement
                     group.stop()
