@@ -11,6 +11,9 @@ import control_msgs.msg
 from std_msgs.msg import Float64
 
 
+from ur_msgs.srv import SetPayload, SetIO
+from ur_msgs.msg import *
+
 def gripper_client(value):
 
     # Create an action client
@@ -48,6 +51,19 @@ def gripper_client_2(value):
     rospy.sleep(0.5)
     p1.publish(value)
     p2.publish(value)
+
+
+def close_gripper_summit():
+    rospy.wait_for_service('/summit_xl/ur_driver/set_io')
+    send_request = rospy.ServiceProxy('/summit_xl/ur_driver/set_io', SetIO)
+    resp = send_request(1,17,0.0)
+    resp = send_request(1,16,1.0)
+
+def open_gripper_summit():
+    rospy.wait_for_service('/summit_xl/ur_driver/set_io')
+    send_request = rospy.ServiceProxy('/summit_xl/ur_driver/set_io', SetIO)
+    resp = send_request(1,16,0.0)
+    resp = send_request(1,17,1.0)
 
 if __name__ == '__main__':
     try:
