@@ -256,18 +256,20 @@ class GpdPickPlace(object):
             group.set_pose_target(single_grasp.grasp_pose.pose)
 
             plan = group.plan()
-            if (len(plan.joint_trajectory.points) != 0):
+            if (len(plan.joint_trajectory.points) != -1):
                 inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
                 if (inp == 'y'):
                     pevent("Executing grasp: ")
+                    ipdb.set_trace()
+                    group.pick("obj",single_grasp)
 
-                    pick_result = group.execute(plan, wait=True)
+                  #  pick_result = group.execute(plan, wait=True)
 
-                    if pick_result == True:
-                     pevent("Grasp successful!")
-                     return single_grasp
-                    else:
-                         failed_grasps += 1
+                   # if pick_result == True:
+                   #  pevent("Grasp successful!")
+                   #  return single_grasp
+                   # else:
+                   #      failed_grasps += 1
 
                     # Calling `stop()` ensures that there is no residual movement
                     group.stop()
