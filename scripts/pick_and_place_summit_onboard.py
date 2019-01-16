@@ -66,7 +66,7 @@ for name in MoveItErrorCodes.__dict__.keys():
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.15
+    grasp_offset = -0.1
 
     def __init__(self, mark_pose=False):
         self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
@@ -158,11 +158,14 @@ class GpdPickPlace(object):
                 gp.pose.orientation.y = float(quat.elements[2])
                 gp.pose.orientation.z = float(quat.elements[3])
                 gp.pose.orientation.w = float(quat.elements[0])
+
+
+
                 
-                listener = TransformListener(True, rospy.Duration(10.0))
-                listener.waitForTransform('/arm_camera_color_optical_frame', '/summit_xl_base_footprint', rospy.Time(), rospy.Duration(1.0))
+              #  listener = TransformListener(True, rospy.Duration(10.0))
+                tf_listener_.waitForTransform('/arm_camera_color_optical_frame', '/summit_xl_base_footprint', rospy.Time(), rospy.Duration(2.0))
                 print("Grasp pose before transformation:" + str(gp))
-                grasp_pose = listener.transformPose("summit_xl_base_footprint", gp)
+                grasp_pose = tf_listener_.transformPose("summit_xl_base_footprint", gp)
                 print("Grasp pose after transformation:" + str(grasp_pose))
                 g.grasp_pose = grasp_pose
 
@@ -215,6 +218,8 @@ class GpdPickPlace(object):
 #                else:
 #                    pass
             print(repr(cont) + " grasps out of " + repr(tot_grasps) + " removed because of no IK_SOLUTION error")
+            # sort grasps using z (get higher grasps first)
+         #   formatted_grasps.sort(key=lambda grasp: grasp.grasp_pose.pose.position.z, reverse=True)
             return formatted_grasps
 
     def trans_matrix_to_quaternion(self, grasp):
@@ -242,7 +247,7 @@ class GpdPickPlace(object):
         upright_constraints.joint_constraints.append(joint_constraint)
 
         # Store the current pose
-        start_pose = group.get_current_pose("arm_ee_link")
+       # start_pose = group.get_current_pose("arm_ee_link")
 
         # Set the path constraints on the right_arm
         group.set_path_constraints(upright_constraints)
@@ -275,7 +280,6 @@ class GpdPickPlace(object):
 
                 # Calling `stop()` ensures that there is no residual movement
                 group.stop()
-
                 group.clear_pose_targets()
                 group.clear_path_constraints()
 
@@ -289,6 +293,9 @@ class GpdPickPlace(object):
              #    else:
              #       failed_grasps += 1
               elif (inp == 'exit'):
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
                 exit(1)
                   
         pevent("All grasps failed. Aborting")
@@ -324,9 +331,12 @@ class GpdPickPlace(object):
 
                 # Calling `stop()` ensures that there is no residual movement
                 group.stop()
-
                 group.clear_pose_targets()
+                group.clear_path_constraints()
             elif (inp == 'exit'):
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
                 exit(1)
 
     def place(self, place_pose):
@@ -427,10 +437,12 @@ class GpdPickPlace(object):
         upright_constraints.joint_constraints.append(joint_constraint)
 
         # Store the current pose
-        start_pose = group.get_current_pose("arm_ee_link")
+        #start_pose = group.get_current_pose("arm_ee_link")
 
          # Set the path constraints on the right_arm
-        group.set_path_constraints(upright_constraints)
+       # group.set_path_constraints(upright_constraints)
+
+
 
       #  group.allow_replanning(True)
 
@@ -443,21 +455,23 @@ class GpdPickPlace(object):
         pose_goal.orientation.x = -0.512619316578#-0.505350887775
         pose_goal.orientation.y = 0.470291614532#0.478404045105
         pose_goal.orientation.z = 0.503242969513#0.511537611485
-
+        #group.set_start_state_to_current_state()
         group.set_pose_target(pose_goal)
 
         # The go command can be called with joint values, poses, or without any
         # parameters if you have already set the pose or joint target for the group
         # group.go(joint_goal, wait=True)
 
-        plan = group.go(wait=True)
-        if (plan != False):
+        plan = group.plan()
+
+        rospy.sleep(1)
+        if (len(plan.joint_trajectory.points) != 0):
             inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
             if (inp == 'y'):
                 pevent("Executing place: ")
 
                 result = group.execute(plan, wait=True)
-
+                rospy.sleep(1)
                 if result == True:
                     pevent("Pose successful!")
                 else:
@@ -465,9 +479,12 @@ class GpdPickPlace(object):
 
                 # Calling `stop()` ensures that there is no residual movement
                 group.stop()
-
                 group.clear_pose_targets()
+                group.clear_path_constraints()
             elif (inp == 'exit'):
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
                 exit(1)
 
 
@@ -516,9 +533,12 @@ if __name__ == "__main__":
     close_gripper_summit()
 
     tf_listener_ = TransformListener()
+
     pnp = GpdPickPlace(mark_pose=True)
     group_name = "manipulator"
     group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl")
+    group.set_goal_orientation_tolerance(0.02)
+    group.set_goal_position_tolerance(0.03)
     #group.set_planner_id("RRTConnectkConfigDefault")
    # group.set_planning_time(5)
     gik = GetIK(group='manipulator', ik_timeout=1.0,
@@ -529,11 +549,11 @@ if __name__ == "__main__":
 
         # Subscribe for grasps
         print("--- Move Arm to Initial Position---")
-        print "Please make sure that your robot can move freely in vertical before proceeding!"
-        inp = raw_input("Do you want to proceed? y/n: ")[0]
-        if (inp == 'y'):
-            pnp.initial_pose_constraints()
-            print("Initial arm positioning performed")
+      #  print "Please make sure that your robot can move freely in vertical before proceeding!"
+      #  inp = raw_input("Do you want to proceed? y/n: ")[0]
+      #  if (inp == 'y'):
+        pnp.initial_pose_constraints()
+       #     print("Initial arm positioning performed")
 
        # pnp.initial_pose()
          # Get the pointcloud from camera, filter it, extract indices and publish it to gpd CNN
