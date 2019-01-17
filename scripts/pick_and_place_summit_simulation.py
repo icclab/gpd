@@ -65,10 +65,10 @@ for name in MoveItErrorCodes.__dict__.keys():
 class GpdPickPlace(object):
     grasps = []
     mark_pose = False
-    grasp_offset = -0.15
+    grasp_offset = -0.1
 
     def __init__(self, mark_pose=False):
-        self.grasp_subscriber = rospy.Subscriber("/summit_xl/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
+        self.grasp_subscriber = rospy.Subscriber("/detect_grasps/clustered_grasps", GraspConfigList, self.grasp_callback)
 
         if mark_pose:
             self.mark_pose = True
@@ -89,7 +89,7 @@ class GpdPickPlace(object):
             lifetime=rospy.Duration(60),
             pose=grasp_pose,
             scale=Vector3(0.04, 0.02, 0.02),
-            header=Header(frame_id='arm_camera_depth_optical_frame'),
+            header=Header(frame_id='summit_xl_base_footprint'),
             color=ColorRGBA(1.0, 0.0, 0.0, 0.8))
         publisher.publish(marker_x)
 
@@ -126,10 +126,23 @@ class GpdPickPlace(object):
            # return quaternion
 
     def generate_grasp_msgs(self, grasps):
+
             formatted_grasps = []
             tot_grasps = len(grasps)
             cont = 0
+            filtered_orientation = 0
             for i in range(0, len(grasps)):  # dimitris, take out self. !
+              #  ipdb.set_trace()
+                z_axis_unit = (0, 0, 1)
+                ap_axis = (self.grasps[i].approach.x, self.grasps[i].approach.y, self.grasps[i].approach.z)
+                angle = numpy.dot(z_axis_unit, ap_axis)
+                if (angle <= 0):
+                    # filter it out, because grasp coming from below the ground
+                    filtered_orientation += 1
+                    print(repr(filtered_orientation) + " Grasp filtered because coming from underneath the ground")
+                    continue
+
+
                 g = Grasp()
                 g.id = "dupa"
                 gp = PoseStamped()
@@ -149,6 +162,8 @@ class GpdPickPlace(object):
 
                 quat = org_q  # * rot_z_q
 
+
+
                 gp.pose.position.x = grasps[i].surface.x + self.grasp_offset * grasps[i].approach.x
                 gp.pose.position.y = grasps[i].surface.y + self.grasp_offset * grasps[i].approach.y
                 gp.pose.position.z = grasps[i].surface.z + self.grasp_offset * grasps[i].approach.z
@@ -158,27 +173,35 @@ class GpdPickPlace(object):
                 gp.pose.orientation.z = float(quat.elements[3])
                 gp.pose.orientation.w = float(quat.elements[0])
 
-                #            ipdb.set_trace()
-                gp_in_base = self.tf_listen(gp)
-                resp = gik.get_ik(gp_in_base)
-                #   rospy.loginfo(str(resp))
-                err_code = resp.error_code.val
+                #  listener = TransformListener(True, rospy.Duration(10.0))
+                tf_listener_.waitForTransform('/arm_camera_depth_optical_frame', '/summit_xl_base_footprint',
+                                              rospy.Time(), rospy.Duration(2.0))
+                print("Grasp pose before transformation:" + str(gp))
+                grasp_pose = tf_listener_.transformPose("summit_xl_base_footprint", gp)
+                print("Grasp pose after transformation:" + str(grasp_pose))
+                g.grasp_pose = grasp_pose
 
-                self.show_grasp_pose(self.marker_publisher, gp.pose)
-                rospy.sleep(1)
+                #            ipdb.set_trace()
+                #                gp_in_base = self.tf_listen(gp)
+                #                resp = gik.get_ik(gp_in_base)
+                #                #   rospy.loginfo(str(resp))
+                #                err_code = resp.error_code.val
+
+                #                self.show_grasp_pose(self.marker_publisher, gp.pose)
+                #                rospy.sleep(1)
 
 #                self.show_graspik_pose(self.marker_publisher, gp_in_base.pose)
 #                rospy.sleep(1)
 
-                rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
-                if (err_code == -31):
-                    cont += 1
-                elif (err_code == 1):
-                    g.grasp_pose = gp
-                    g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
-                    g.pre_grasp_approach.direction.vector.x = 1.0
-                    g.pre_grasp_approach.min_distance = 0.06
-                    g.pre_grasp_approach.desired_distance = 0.1
+                #                rospy.loginfo("IK result on grasp is: " + moveit_error_dict[err_code])
+                #                if (err_code == -31):
+                #                    cont += 1
+                #                elif (err_code == 1):
+                #                g.grasp_pose = gp
+                g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
+                g.pre_grasp_approach.direction.vector.x = 1.0
+                g.pre_grasp_approach.min_distance = 0.04
+                g.pre_grasp_approach.desired_distance = 0.06
 
                     #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
                     #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -198,15 +221,18 @@ class GpdPickPlace(object):
                     #  g.grasp_posture.points.append(pos)
                     #  g.grasp_posture.header.frame_id = "hand_link"
 
-                    g.allowed_touch_objects = ["<octomap>", "obj"]
-                    g.max_contact_force = 0.0
-                    # g.grasp_quality = grasps[0].score.data  perche 0 e non i????
-                    g.grasp_quality = grasps[0].score.data
+                g.allowed_touch_objects = ["<octomap>", "obj"]
+                g.max_contact_force = 0.0
+                 # g.grasp_quality = grasps[0].score.data  perche 0 e non i????
+                g.grasp_quality = grasps[0].score.data
 
-                    formatted_grasps.append(g)
-                else:
-                    pass
+                formatted_grasps.append(g)
+
+                #else:
+                #    pass
             print(repr(cont) + " grasps out of " + repr(tot_grasps) + " removed because of no IK_SOLUTION error")
+            # sort grasps using z (get higher grasps first)
+            formatted_grasps.sort(key=lambda grasp: grasp.grasp_pose.pose.position.z, reverse=True)
             return formatted_grasps
 
     def trans_matrix_to_quaternion(self, grasp):
@@ -215,36 +241,80 @@ class GpdPickPlace(object):
                       [grasp.approach.z, grasp.binormal.z, grasp.axis.z]])
         return Quaternion(matrix=r)
 
+
+
+
+
     def pick(self, grasps_list, verbose=False):
         failed_grasps = 0
         pevent("Pick sequence started")
         # Add object mesh to planning scene
         self.add_object_mesh()
 
+        upright_constraints = Constraints()
+        joint_constraint = JointConstraint()
+        upright_constraints.name = "upright"
+        joint_constraint.position = 0
+        joint_constraint.tolerance_above = 3.14 / 2
+        joint_constraint.tolerance_below = 3.14 / 2
+        joint_constraint.weight = 1
+
+        joint_constraint.joint_name = "arm_shoulder_pan_joint"
+        upright_constraints.joint_constraints.append(joint_constraint)
+
+        # Store the current pose
+        # start_pose = group.get_current_pose("arm_ee_link")
+
+        # Set the path constraints on the right_arm
+        group.set_path_constraints(upright_constraints)
+
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
                 rospy.sleep(1)
 
-            if verbose:
-                pevent("Executing grasp: ")
-                pprint(single_grasp.grasp_pose.pose)
+            pevent("Planning grasp:")
+            pprint(single_grasp.grasp_pose)
+            group.set_pose_target(single_grasp.grasp_pose.pose)
+            plan = group.plan()
+            if (len(plan.joint_trajectory.points) != 0):
+                inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
+                if (inp == 'y'):
+                    pevent("Executing grasp: ")
+                    #   pprint(single_grasp.grasp_pose)
 
+                    #  group.pick("obj", single_grasp)
 
+                    pick_result = group.execute(plan, wait=True)
 
-            pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>",
-                                        allow_gripper_support_collision=True)
+                    if pick_result == True:
+                        pevent("Grasp successful!")
+                        return single_grasp
+                    else:
+                        failed_grasps += 1
 
-            pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+                    # Calling `stop()` ensures that there is no residual movement
+                    group.stop()
+                    group.clear_pose_targets()
+                    group.clear_path_constraints()
 
-            if pick_result.error_code.val == 1:
-                pevent("Grasp successful!")
-                return single_grasp
-            else:
-                failed_grasps += 1
-                if failed_grasps == 10:
-                    pevent("All grasps failed. Aborting")
+                #      pick_result = self.p.pickup("obj", [single_grasp, ], planning_time=9001, support_name="<octomap>", allow_gripper_support_collision=True)
+
+                #     pevent("Planner returned: " + get_moveit_error_code(pick_result.error_code.val))
+
+                #    if pick_result.error_code.val == 1:
+                #        pevent("Grasp successful!")
+                #       return single_grasp
+                #    else:
+                #       failed_grasps += 1
+                elif (inp == 'exit'):
+                    group.stop()
+                    group.clear_pose_targets()
+                    group.clear_path_constraints()
                     exit(1)
+
+        pevent("All grasps failed. Aborting")
+        exit(1)
 
     def place2(self, place_pose):
         pevent("Place sequence started")
@@ -258,15 +328,31 @@ class GpdPickPlace(object):
         pose_goal.orientation.z = 0.185558646917
         group.set_pose_target(pose_goal)
 
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
-        # group.go(joint_goal, wait=True)
+        pevent("Planning pose:")
+        pprint(pose_goal)
+        group.set_pose_target(pose_goal)
+        plan = group.plan()
+        if (len(plan.joint_trajectory.points) != 0):
+            inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
+            if (inp == 'y'):
+                pevent("Executing place: ")
 
-        plan = group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        group.stop()
+                pick_result = group.execute(plan, wait=True)
 
-        group.clear_pose_targets()
+                if pick_result == True:
+                    pevent("Pose successful!")
+                else:
+                    pevent("Pose failed!")
+
+                # Calling `stop()` ensures that there is no residual movement
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
+            elif (inp == 'exit'):
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
+                exit(1)
 
     def place(self, place_pose):
         pevent("Place sequence started")
@@ -388,13 +474,30 @@ class GpdPickPlace(object):
         # parameters if you have already set the pose or joint target for the group
         # group.go(joint_goal, wait=True)
 
-        plan = group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        group.stop()
+        plan = group.plan()
 
-        group.clear_pose_targets()
-        # Clear all path constraints
-        group.clear_path_constraints()
+        rospy.sleep(1)
+        if (len(plan.joint_trajectory.points) != 0):
+          #  inp = raw_input("Have a look at the planned motion. Do you want to proceed? y/n: ")[0]
+         #   if (inp == 'y'):
+                pevent("Executing place: ")
+
+                result = group.execute(plan, wait=True)
+                rospy.sleep(1)
+                if result == True:
+                    pevent("Pose successful!")
+                else:
+                    pevent("Pose failed!")
+
+                # Calling `stop()` ensures that there is no residual movement
+                group.stop()
+                group.clear_pose_targets()
+                group.clear_path_constraints()
+           # elif (inp == 'exit'):
+            #    group.stop()
+            #    group.clear_pose_targets()
+            #    group.clear_path_constraints()
+            #    exit(1)
 
     def initial_pose(self):
         pevent("Initial pose sequence started")
@@ -444,6 +547,8 @@ if __name__ == "__main__":
     group = moveit_commander.MoveGroupCommander(group_name, robot_description="/summit_xl/robot_description", ns="/summit_xl")
     #group.set_planner_id("RRTConnectkConfigDefault")
    # group.set_planning_time(5)
+    group.set_goal_orientation_tolerance(0.05)
+    group.set_goal_position_tolerance(0.05)
     gik = GetIK(group='manipulator', ik_timeout=1.0,
                               ik_attempts=1,  avoid_collisions=False)
 
@@ -469,6 +574,7 @@ if __name__ == "__main__":
         pnp.wait_for_mesh_and_save()
 
     # Wait for grasps from gpd, wrap them into Grasp msg format and start picking
+       # ipdb.set_trace()
         selected_grasps = pnp.get_gpd_grasps()
         formatted_grasps = pnp.generate_grasp_msgs(selected_grasps)
         result = gripper_client_2(8)
@@ -479,7 +585,7 @@ if __name__ == "__main__":
         print("Gripper closed")
         if successful_grasp is not None:
     # Place object with successful grasp pose as the starting point
-            pnp.place(successful_grasp)
+            pnp.place2(successful_grasp)
             result = gripper_client_2(8)
             print("Gripper opened")
         else:
