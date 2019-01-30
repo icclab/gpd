@@ -6,7 +6,7 @@ import vtk
 import rospy
 import datetime
 from tools import *
-
+import ipdb
 
 def filtering(raw_cloud):
     start_time = datetime.datetime.now()
@@ -22,10 +22,10 @@ def filtering(raw_cloud):
     filtered_cloud = pass_fill.filter()
     pinfo("PointCloud after max range filtering has: " + str(filtered_cloud.size) + " points.")
 
-    sor = filtered_cloud.make_voxel_grid_filter()
-    sor.set_leaf_size(0.005, 0.005, 0.005)
-    filtered_cloud = sor.filter()
-    pinfo("Downsampled PointCloud has: " + str(filtered_cloud.size) + " points.")
+    #sor = filtered_cloud.make_voxel_grid_filter()
+    #sor.set_leaf_size(0.005, 0.005, 0.005)
+    #filtered_cloud = sor.filter()
+    #pinfo("Downsampled PointCloud has: " + str(filtered_cloud.size) + " points.")
 
     stat_fill = filtered_cloud.make_statistical_outlier_filter()
     stat_fill.set_mean_k(50)
@@ -49,7 +49,7 @@ def filtering(raw_cloud):
     tree = filtered_cloud.make_kdtree()
     ec = filtered_cloud.make_EuclideanClusterExtraction()
     ec.set_ClusterTolerance(0.02)
-    ec.set_MinClusterSize(100)
+    ec.set_MinClusterSize(20)
     ec.set_MaxClusterSize(200000)
     ec.set_SearchMethod(tree)
     cluster_indices = ec.Extract()
@@ -99,7 +99,7 @@ def filtering(raw_cloud):
     obstacles_cloud = pcl.PointCloud()
     obstacles_cloud.from_array(obstacles_points.astype(dtype=np.float32))
 
-    # pcl.save(extracted_object_cloud, "objects.pcd")
+    pcl.save(extracted_object_cloud, "objects.pcd")
     pcl.save(obstacles_cloud, "obstacles.pcd")
 
     # Make a mesh from object pointcloud and save it to stl file to load if from moveit side
@@ -122,6 +122,7 @@ def filtering(raw_cloud):
     return extracted_object_cloud
 
 
+
 def create_mesh_and_save(cloud):
     filename = "object.stl"
 
@@ -134,12 +135,22 @@ def create_mesh_and_save(cloud):
     profile = vtk.vtkPolyData()
     profile.SetPoints(vtk_points)
 
+    aCellArray = vtk.vtkCellArray()
+
+    boundary = vtk.vtkPolyData()
+    boundary.SetPoints(profile.GetPoints())
+    boundary.SetPolys(aCellArray)
+
     delny = vtk.vtkDelaunay2D()
     delny.SetInputData(profile)
-    delny.SetTolerance(0.001)
+    delny.SetSourceData(boundary)
+    delny.SetTolerance(0.0001)
+    delny.SetAlpha(4.0)
+    delny.SetOffset(1.25)
+    delny.BoundingTriangulationOff()
+    delny.Update()
 
     stl_writer = vtk.vtkSTLWriter()
-    stl_writer.SetFileName(filename)
     stl_writer.SetFileName(filename)
     stl_writer.SetInputConnection(delny.GetOutputPort())
     stl_writer.Write()
