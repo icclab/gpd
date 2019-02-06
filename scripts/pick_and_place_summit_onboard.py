@@ -244,26 +244,6 @@ class GpdPickPlace(object):
         pevent("Pick sequence started")
         # Add object mesh to planning scene
         self.add_object_mesh()
-
-
-        upright_constraints = Constraints()
-        joint_constraint = JointConstraint()
-        upright_constraints.name = "upright"
-        joint_constraint.position = 0
-        joint_constraint.tolerance_above = 3.14/2
-        joint_constraint.tolerance_below = 3.14/2
-        joint_constraint.weight = 1
-
-        joint_constraint.joint_name = "arm_shoulder_pan_joint"
-        upright_constraints.joint_constraints.append(joint_constraint)
-
-        # Store the current pose
-       # start_pose = group.get_current_pose("arm_ee_link")
-
-        # Set the path constraints on the right_arm
-        group.set_path_constraints(upright_constraints)
-
-
         for single_grasp in grasps_list:
             if self.mark_pose:
                 self.show_grasp_pose(self.marker_publisher, single_grasp.grasp_pose.pose)
@@ -362,12 +342,10 @@ class GpdPickPlace(object):
                 # Calling `stop()` ensures that there is no residual movement
                 group.stop()
                 group.clear_pose_targets()
-                group.clear_path_constraints()
                 place_successful = False
             elif (inp == 'exit'):
                 group.stop()
                 group.clear_pose_targets()
-                group.clear_path_constraints()
                 place_successful = False
                 exit(1)
         else:
@@ -463,31 +441,41 @@ class GpdPickPlace(object):
 
         return g
 
-    def initial_pose_constraints(self):
-       # ipdb.set_trace()
-        pevent("Initial constrained pose sequence started")
+    def set_pose_constraints(self,tol_joint1,tol_joint2,tol_joint3):
         upright_constraints = Constraints()
         joint_constraint = JointConstraint()
         upright_constraints.name = "upright"
-        joint_constraint.position = 0
-        joint_constraint.tolerance_above = .5
-        joint_constraint.tolerance_below = .5
-        joint_constraint.weight = 1
-
+        joint_constraint.position = 0.0
+        joint_constraint.tolerance_above = tol_joint1
+        joint_constraint.tolerance_below = tol_joint1
+        joint_constraint.weight = 0.1
         joint_constraint.joint_name = "arm_shoulder_pan_joint"
         upright_constraints.joint_constraints.append(joint_constraint)
 
-        # Store the current pose
-        start_pose = group.get_current_pose("arm_ee_link")
+        joint_constraint2 = JointConstraint()
+        joint_constraint2.position = 0.0
+        joint_constraint2.tolerance_above = tol_joint2
+        joint_constraint2.tolerance_below = tol_joint2
+        joint_constraint2.weight = 0.2
+        joint_constraint2.joint_name = "arm_wrist_2_joint"
+        upright_constraints.joint_constraints.append(joint_constraint2)
 
-         # Set the path constraints on the right_arm
+        joint_constraint3 = JointConstraint()
+        joint_constraint3.position = 0.0
+        joint_constraint3.tolerance_above = tol_joint3
+        joint_constraint3.tolerance_below = tol_joint3
+        joint_constraint3.weight = 0.3
+        joint_constraint3.joint_name = "arm_wrist_1_joint"
+        upright_constraints.joint_constraints.append(joint_constraint3)
+
         group.set_path_constraints(upright_constraints)
 
 
+    def remove_pose_constraints(self):
+        group.clear_path_constraints()
 
-      #  group.allow_replanning(True)
-
-
+    def initial_pose(self):
+        pevent("Initial constrained pose sequence started")
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.position.x = 1.07464909554
         pose_goal.position.y = 0.00558180361986
@@ -518,15 +506,17 @@ class GpdPickPlace(object):
                 result = group.execute(plan, wait=True)
                 rospy.sleep(1)
                 if result == True:
-                    pevent("Pose successful!")
+                    pevent("Initial pose successful!")
+                    group.stop()
+                    group.clear_pose_targets()
+                    return True
                 else:
-                    pevent("Pose failed!")
-
+                    pevent("Initial pose failed!")
+                    group.stop()
+                    group.clear_pose_targets()
+                    return False
                 # Calling `stop()` ensures that there is no residual movement
-                group.stop()
-                group.clear_pose_targets()
-                group.clear_path_constraints()
-                return True
+
             elif (inp == 'exit'):
                 group.stop()
                 group.clear_pose_targets()
@@ -535,31 +525,7 @@ class GpdPickPlace(object):
         else:
             pevent("Initial position planning failed. Aborting")
             return False
-
-    def initial_pose(self):
-        pevent("Initial pose sequence started")
-
-        pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.position.x = 1.07464909554
-        pose_goal.position.y = 0.00558180361986
-        pose_goal.position.z = 0.801929414272
-        pose_goal.orientation.w = 0.504062771797
-        pose_goal.orientation.x = -0.505350887775
-        pose_goal.orientation.y = 0.478404045105
-        pose_goal.orientation.z = 0.511537611485
-
-        group.set_pose_target(pose_goal)
-
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
-        # group.go(joint_goal, wait=True)
-
-        plan = group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        group.stop()
-
-        group.clear_pose_targets()
-        
+       
     def wait_for_mesh_and_save(self):
       pinfo("Subscribing to pointcloud to generate mesh")
       self.obj_pc_subscriber = rospy.Subscriber("/cloud_indexed_pc_only", sensor_msgs.msg.PointCloud2 , self.obj_pointcloud_callback)
@@ -633,7 +599,9 @@ if __name__ == "__main__":
       #  print "Please make sure that your robot can move freely in vertical before proceeding!"
       #  inp = raw_input("Do you want to proceed? y/n: ")[0]
       #  if (inp == 'y'):
-        if (pnp.initial_pose_constraints() == True):
+        pnp.remove_pose_constraints()
+        pnp.set_pose_constraints(3.14 / 2, 3.14/4*3, 3.14/4*3 )
+        if (pnp.initial_pose() == True):
             print("Initial arm positioning performed")
         else:
             print("Initial arm positioning failed. Aborting")
@@ -656,7 +624,8 @@ if __name__ == "__main__":
         #result = gripper_client_2(8)
         open_gripper_summit()
         print("Gripper opened")
-
+       # pnp.remove_pose_constraints()
+       # pnp.set_pose_constraints(3.14 , 3.14 / 4 * 3, 3.14 / 4 * 3)
         successful_grasp = pnp.pick(formatted_grasps, verbose=True)
         if successful_grasp is not None:
              #result = gripper_client_2(-8)
@@ -665,6 +634,8 @@ if __name__ == "__main__":
             pnp.start_grasp_check()
 
     # Place object with successful grasp pose as the starting point
+         #   pnp.remove_pose_constraints()
+         #   pnp.set_pose_constraints(3.14 , 3.14 / 4 * 3, 3.14 / 4 * 3)
             success=pnp.place2(successful_grasp)
             if success == False:
                 objects_grasped_not_placed += 1
@@ -680,14 +651,18 @@ if __name__ == "__main__":
 
         else:
             print("Grasp NOT performed")
-            if (pnp.initial_pose_constraints() == True):
+          #  pnp.remove_pose_constraints()
+          #  pnp.set_pose_constraints(3.14 , 3.14 / 4 * 3, 3.14 / 4 * 3)
+            if (pnp.initial_pose() == True):
                 print("Initial arm positioning performed")
             else:
                 print("Initial arm positioning failed. Aborting")
                 exit(1)
 
         perc_successful_grasps = (100.0 * succesfull_objects_placements/num_objects)
-    print(str(succesfull_objects_placements) + " out of " + str(num_objects) + "succesfull grasps, that is: %.2f" % perc_successful_grasps + "%. Of the grasped objects, we lost: " + str(objects_grasped_lost) + " and of the grasped once the not placed ones are " + str(objects_grasped_not_placed))
+
+    pnp.remove_pose_constraints()
+    print(str(succesfull_objects_placements) + " out of " + str(num_objects) + " succesfull grasps, that is: %.2f" % perc_successful_grasps + "%. Of the grasped objects, we lost: " + str(objects_grasped_lost) + " and of the grasped once the not placed ones are " + str(objects_grasped_not_placed))
     pinfo("Demo runtime: " + str(datetime.datetime.now() - start_time))
 
 
