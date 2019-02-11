@@ -47,7 +47,7 @@ from copy import deepcopy
 from pointcloud_operations import create_mesh_and_save
 from sensor_msgs import point_cloud2
 from get_ik import GetIK
-from scipy.spatial import ConvexHull
+
 client = None
 from moveit_msgs.msg import MoveItErrorCodes
 
@@ -429,13 +429,22 @@ class GpdPickPlace(object):
     def initial_pose(self):
         pevent("Initial constrained pose sequence started")
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.position.x = 1.07464909554
-        pose_goal.position.y = 0.00558180361986
-        pose_goal.position.z = 0.699603497982#0.801929414272
-        pose_goal.orientation.w = 0.512634038925#0.504062771797
-        pose_goal.orientation.x = -0.512619316578#-0.505350887775
-        pose_goal.orientation.y = 0.470291614532#0.478404045105
-        pose_goal.orientation.z = 0.503242969513#0.511537611485
+        # pose_goal.position.x = 1.07464909554
+        # pose_goal.position.y = 0.00558180361986
+        # pose_goal.position.z = 0.699603497982#0.801929414272
+        # pose_goal.orientation.w = 0.512634038925#0.504062771797
+        # pose_goal.orientation.x = -0.512619316578#-0.505350887775
+        # pose_goal.orientation.y = 0.470291614532#0.478404045105
+        # pose_goal.orientation.z = 0.503242969513#0.511537611485
+
+        pose_goal.position.x = 1.06285917759
+        pose_goal.position.y = -0.00109632476233
+        pose_goal.position.z = 0.828287780285
+        pose_goal.orientation.w = 0.512402296066
+        pose_goal.orientation.x = -0.512062907219
+        pose_goal.orientation.y = 0.470357865095
+        pose_goal.orientation.z = 0.503983080387
+
         group.set_pose_target(pose_goal)
         # The go command can be called with joint values, poses, or without any
         # parameters if you have already set the pose or joint target for the group
@@ -577,11 +586,13 @@ if __name__ == "__main__":
 #        if (inp == 'y'):
         pnp.remove_pose_constraints()
         pnp.set_pose_constraints(3.14 / 2, 3.14/4*3, 3.14/4*3 )
-        if (pnp.initial_pose() == True):
-            print("Initial arm positioning performed")
-        else:
-            print("Initial arm positioning failed. Aborting")
-            exit(1)
+        while (pnp.initial_pose() == False):
+       # if (pnp.initial_pose() == True):
+        #    print("Initial arm positioning performed")
+       # else:
+            print("Initial arm positioning failed!")
+        print("Initial arm positioning performed")
+         #   exit(1)
         #call_pointcloud_filter_service()
         #pnp.wait_for_pcl_and_save()
         #num_view +=1

@@ -199,8 +199,8 @@ class GpdPickPlace(object):
 #                g.grasp_pose = gp
                 g.pre_grasp_approach.direction.header.frame_id = "arm_ee_link"
                 g.pre_grasp_approach.direction.vector.x = 1.0
-                g.pre_grasp_approach.min_distance = 0.06
-                g.pre_grasp_approach.desired_distance = 0.1
+                #g.pre_grasp_approach.min_distance = 0.02
+                #g.pre_grasp_approach.desired_distance = 0.06
 
                 #   g.pre_grasp_posture.joint_names = ["gripper_right_finger_joint", "gripper_left_finger_joint"]
                 #   g.pre_grasp_posture.joint_names = ["arm_tool0"]
@@ -477,13 +477,22 @@ class GpdPickPlace(object):
     def initial_pose(self):
         pevent("Initial constrained pose sequence started")
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.position.x = 1.07464909554
-        pose_goal.position.y = 0.00558180361986
-        pose_goal.position.z = 0.699603497982#0.801929414272
-        pose_goal.orientation.w = 0.512634038925#0.504062771797
-        pose_goal.orientation.x = -0.512619316578#-0.505350887775
-        pose_goal.orientation.y = 0.470291614532#0.478404045105
-        pose_goal.orientation.z = 0.503242969513#0.511537611485
+        # pose_goal.position.x = 1.07464909554
+        # pose_goal.position.y = 0.00558180361986
+        # pose_goal.position.z = 0.699603497982#0.801929414272
+        # pose_goal.orientation.w = 0.512634038925#0.504062771797
+        # pose_goal.orientation.x = -0.512619316578#-0.505350887775
+        # pose_goal.orientation.y = 0.470291614532#0.478404045105
+        # pose_goal.orientation.z = 0.503242969513#0.511537611485
+
+        pose_goal.position.x = 1.06285917759
+        pose_goal.position.y = -0.00109632476233
+        pose_goal.position.z = 0.828287780285
+        pose_goal.orientation.w = 0.512402296066
+        pose_goal.orientation.x = -0.512062907219
+        pose_goal.orientation.y = 0.470357865095
+        pose_goal.orientation.z = 0.503983080387
+
         group.set_pose_target(pose_goal)
 
         # The go command can be called with joint values, poses, or without any
@@ -600,7 +609,7 @@ if __name__ == "__main__":
       #  inp = raw_input("Do you want to proceed? y/n: ")[0]
       #  if (inp == 'y'):
         pnp.remove_pose_constraints()
-        pnp.set_pose_constraints(3.14 / 2, 3.14/4*3, 3.14/4*3 )
+       # pnp.set_pose_constraints(3.14 / 4, 3.14/4*3, 3.14/4*3 )
         if (pnp.initial_pose() == True):
             print("Initial arm positioning performed")
         else:
@@ -624,8 +633,8 @@ if __name__ == "__main__":
         #result = gripper_client_2(8)
         open_gripper_summit()
         print("Gripper opened")
-       # pnp.remove_pose_constraints()
-       # pnp.set_pose_constraints(3.14 , 3.14 / 4 * 3, 3.14 / 4 * 3)
+        pnp.remove_pose_constraints()
+        pnp.set_pose_constraints(3.14 , 3.14 / 4 * 3, 3.14 / 4 * 3)
         successful_grasp = pnp.pick(formatted_grasps, verbose=True)
         if successful_grasp is not None:
              #result = gripper_client_2(-8)
