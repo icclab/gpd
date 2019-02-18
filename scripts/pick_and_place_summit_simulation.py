@@ -143,6 +143,7 @@ class GpdPickPlace(object):
                 gp = PoseStamped()
                 gp.header.frame_id = "arm_camera_depth_optical_frame"
                 org_q = self.trans_matrix_to_quaternion(selected_grasps[i])
+
                 #   self.tf_listener_ = TransformListener()
                 #    rospy.sleep(1)
                 #           dyn_rot = self.tf_listen()
@@ -234,7 +235,6 @@ class GpdPickPlace(object):
             pprint(single_grasp.grasp_pose)
             group.set_start_state_to_current_state()
             group.detach_object("obj")
-
 
             ### start code using pick interface ###
             # pick_result = group.pick("obj", single_grasp)
@@ -336,6 +336,7 @@ class GpdPickPlace(object):
         place_result = self.p.place_with_retry("obj", places, support_name="<octomap>", planning_time=9001,
                                   goal_is_eef=True)
                # pevent("Planner returned: " + get_moveit_error_code(place_result.error_code.val))
+
     def generate_place_poses(self, initial_place_pose):
         places = list()
         l = PlaceLocation()
@@ -479,7 +480,6 @@ class GpdPickPlace(object):
                     group.stop()
                     group.clear_pose_targets()
                     return False
-
             elif (inp == 'exit'):
                 group.stop()
                 group.clear_pose_targets()
