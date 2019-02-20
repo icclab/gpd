@@ -106,8 +106,7 @@ def filtering(raw_cloud):
     create_mesh_and_save(extracted_object_cloud)
 
     # Publish cloud with extracted obstacles to create octomap
-    pcd = subprocess.Popen(
-        ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=arm_camera_color_optical_frame'])
+    pcd = subprocess.Popen(['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'obstacles.pcd', '_frame_id:=arm_camera_color_optical_frame'])
 
     #pcd_2 = subprocess.Popen(
     #    ['rosrun', 'pcl_ros', 'pcd_to_pointcloud', 'objects.pcd', 'cloud_pcd2', '_frame_id:=xtion_rgb_optical_frame'])

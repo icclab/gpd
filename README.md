@@ -21,7 +21,6 @@ Follow these steps:
 
 Once everything is built, you can run the Tiago pick&place demo
 
-
 # How to start pick&place demo on summit_xl robot
 
 First you need the icclab_turtlebot project installed and run the summit_xl robot simulation plus demo:
@@ -58,7 +57,8 @@ def __init__(self,
                                                           
 
 
-To test the code, add an object in Gazebo in front of the robot. Move first the arm using RVIZ so that it is on top of the object. Make sure in Rviz the markers and grasps are activated. Then run the python script.                                                        
+To test the code, add an object in Gazebo in front of the robot. Move first the arm using RVIZ so that it is on top of the object. Make sure in Rviz the markers and grasps are activated. Then run the python script.
+
 
 # How to start pick&place demo on Niryo arm
 
