@@ -99,6 +99,7 @@ You can comment out **twist_mux** in `/tiago_gazebo/launch/simulation_tiago_brin
 * **Version:** 1.0.0
 * **Author's website:** [http://www.ccs.neu.edu/home/atp/](http://www.ccs.neu.edu/home/atp/)
 * **License:** BSD
+* **Branch without Caffe dependency**: [forward](https://github.com/atenpas/gpd/tree/forward)
 
 
 ## 1) Overview
@@ -113,6 +114,8 @@ Grasp pose detection consists of three steps: sampling a large number of grasp c
 as viable grasps or not, and clustering viable grasps which are geometrically similar.
 
 The reference for this package is: [High precision grasp pose detection in dense clutter](http://arxiv.org/abs/1603.01564).
+
+**Update:** A version of this package that does not require Caffe can be found [here](https://github.com/atenpas/gpd/tree/forward).</span style>
 
 ### UR5 Video
 
@@ -197,6 +200,7 @@ The output should look similar to the screenshot shown below.
 
 1. [Detect Grasps With an RGBD camera](tutorials/tutorial_1_grasps_camera.md)
 2. [Detect Grasps on a Specific Object](tutorials/tutorial_2_grasp_select.md)
+3. [Detect Grasps with OpenVINO](tutorials/tutorial_openvino.md)
 
 
 ## 7) Parameters
